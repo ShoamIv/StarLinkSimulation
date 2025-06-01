@@ -1,0 +1,393 @@
+Ikire, Nigeria: (7.3698, 4.1864)
+
+Lekki, Nigeria: (6.4369, 3.5244)
+
+Akita, Japan: (39.7200, 140.1025)
+
+Hitachinaka, Japan: (36.3964, 140.5347)
+
+Otaru, Japan: (43.1907, 140.9947)
+
+Yamaguchi, Japan: (34.1782, 131.4737)
+
+Angeles, Philippines: (15.1450, 120.5847)
+
+Marathon, Ontario: (48.7500, -86.3667)
+
+Saguenay, Quebec: (48.4167, -71.0667)
+
+Sambro Creek, Nova Scotia: (44.4800, -63.6100)
+
+St Johns, Newfoundland: (47.5615, -52.7126)
+
+Caleta, Dominican Republic: (18.4500, -69.7000)
+
+Santiago de los Caballeros, Dominican Republic: (19.4500, -70.7000)
+
+Cabo San Lucas, Mexico: (22.8905, -109.9167)
+
+Charcas, Mexico: (23.1294, -101.1139)
+
+El Marques, Mexico: (20.5183, -100.2936)
+
+Llano Grande, Mexico: (19.2708, -96.9639)
+
+Mazahua, Mexico: (19.9167, -99.9167)
+
+Merida, Mexico: (20.9674, -89.5926)
+
+Monterey, Mexico: (25.6667, -100.3000)
+
+Peñuelas, Mexico: (22.4333, -101.9167)
+
+Tapachula, Mexico: (14.9000, -92.2667)
+
+Villahermosa, Mexico: (17.9892, -92.9281)
+
+Ponce, Puerto Rico: (18.0000, -66.6167)
+
+Toa Baja, Puerto Rico: (18.4439, -66.2597)
+
+Adelanto, California: (34.5838, -117.4082)
+
+Anchorage, Arkansas: (61.1844, -149.9306)
+
+Anderson, South Carolina: (34.5258, -82.6529)
+
+Angola, Indiana: (41.6349, -84.9993)
+
+Arbuckle, California: (39.0174, -122.0575)
+
+Arlington, Oregon: (45.7167, -120.2000)
+
+Arvin, California: (35.2091, -118.8284)
+
+Atlanta, Georgia: (33.7490, -84.3880)
+
+Baxley, Georgia: (31.7785, -82.3485)
+
+Beekmantown, New York: (44.7639, -73.4928)
+
+Bellingham, Washington: (48.7519, -122.4787)
+
+Benkelman, Nebraska: (40.0522, -101.5329)
+
+Blountsville, Alabama: (34.0818, -86.5908)
+
+Boca Chica, Texas: (25.9898, -97.1544)
+
+Boydton, Virginia: (36.6676, -78.3875)
+
+Brewster, Washington: (48.0985, -119.7031)
+
+Broadview, Illinois: (41.8639, -87.8533)
+
+Brunswick, Maine: (43.9145, -69.9653)
+
+Butte, Montana: (46.0038, -112.5348)
+
+Cass County, North Dakota: (46.9000, -97.2000)
+
+Charleston, Oregon: (43.3401, -124.3259)
+
+Charleston, South Carolina: (32.7765, -79.9311)
+
+Cheyenne, Wyoming: (41.1399, -104.8202)
+
+Clinton, Illinois: (40.1536, -88.9645)
+
+Colburn, Idaho: (47.3206, -116.7049)
+
+Conrad, Montana: (48.1706, -111.9436)
+
+Des Moines, Iowa: (41.5868, -93.6250)
+
+Dumas, Texas: (35.8656, -101.9732)
+
+Elbert, Colorado: (39.2200, -104.5367)
+
+Elkton, Maryland: (39.6068, -75.8333)
+
+Evanston, Wyoming: (41.2683, -110.9632)
+
+Fairbanks, Alaska: (64.8378, -147.7164)
+
+Fort Lauderdale, Florida: (26.1224, -80.1373)
+
+Frederick, Maryland: (39.4143, -77.4105)
+
+Gaffney, South Carolina: (35.0718, -81.6498)
+
+Greenville, Pennsylvania: (41.4045, -80.3912)
+
+Hamshire, Texas: (29.8605, -94.3094)
+
+Hawthorne, California: (33.9208, -118.3278)
+
+Hillman, Michigan: (45.0597, -83.9019)
+
+Hillsboro, Texas: (32.0107, -97.1300)
+
+Hitterdal, Minnesota: (46.9758, -96.2564)
+
+Inman, Kansas: (38.2319, -97.7736)
+
+Kalama, Washington: (46.0085, -122.8440)
+
+Kenansville, Florida: (28.1086, -81.0818)
+
+Ketchikan, Alaska: (55.3422, -131.6461)
+
+Kuparuk, Alaska: (70.3300, -149.9000)
+
+Lawrence, Kansas: (38.9717, -95.2353)
+
+Litchfield, Connecticut: (41.7473, -73.1884)
+
+Lockport, New York: (43.1706, -78.6903)
+
+Loring, Maine: (46.9400, -67.8800)
+
+Lunenberg, Vermont: (44.4634, -71.6829)
+
+Mandale, North Carolina: (36.5000, -78.0000)
+
+Manistique, Michigan: (45.9578, -86.2463)
+
+Marcell, Minnesota: (47.5800, -93.6900)
+
+Marshall, Texas: (32.5449, -94.3674)
+
+McGregor, Texas: (31.4369, -97.4017)
+
+Merrillan, Wisconsin: (44.4500, -90.8300)
+
+Molokai, Hawaii: (21.1333, -157.0167)
+
+Mt Ayr, Indiana: (40.9500, -86.8000)
+
+Murrieta, California: (33.5539, -117.2136)
+
+Nemaha, Nebraska: (40.3300, -95.6700)
+
+New Braunfels, Texas: (29.7030, -98.1245)
+
+Nome, Alaska: (64.5011, -165.4064)
+
+Norcross, Georgia: (33.9412, -84.2136)
+
+North Bend, Washington: (47.4957, -121.7869)
+
+Olympia, Washington: (47.0379, -122.9007)
+
+Panaca, Nevada: (37.7900, -114.3900)
+
+Port Matilda, Pennsylvania: (40.8000, -78.0500)
+
+Prosser, Washington: (46.2068, -119.7689)
+
+Punta Gorda, Florida: (26.9298, -82.0454)
+
+Quincy, Washington: (47.2343, -119.8526)
+
+Redmond, Washington: (47.6740, -122.1215)
+
+Richardson, Texas: (32.9483, -96.7299)
+
+Roberts, Wisconsin: (44.9800, -92.5500)
+
+Robbins, California: (38.8700, -121.7000)
+
+Robertsdale, Alabama: (30.5538, -87.7119)
+
+Rolette, North Dakota: (48.6600, -99.8400)
+
+Roll, Arizona: (32.7500, -113.9700)
+
+Romulus, New York: (42.7500, -76.8300)
+
+San Antonio, Texas: (29.4241, -98.4936)
+
+Sanderson, Texas: (30.1400, -102.3900)
+
+Savanna, Oklahoma: (34.8300, -95.8400)
+
+Savannah, Tennessee: (35.2248, -88.2492)
+
+Sheffield, Illinois: (41.3500, -89.7300)
+
+Slope County, North Dakota: (46.4500, -103.4600)
+
+Springer, Oklahoma: (34.3000, -97.1400)
+
+Sullivan, Maine: (44.5200, -68.1900)
+
+The Dalles, Oregon: (45.5946, -121.1787)
+
+Tionesta, California: (38.0500, -120.0800)
+
+Tracy City, Tennessee: (35.2604, -85.7403)
+
+Unalaska, Alaska: (53.8736, -166.5267)
+
+Vernon, Utah: (40.0900, -112.4400)
+
+Warren, Missouri: (38.7700, -91.2600)
+
+Wichita Falls, Texas: (33.9137, -98.4934)
+
+Wise, North Carolina: (36.4800, -78.1700)
+
+York, Pennsylvania: (39.9626, -76.7277)
+
+Villenave d'Ornon, France: (44.7733, -0.5439)
+
+Aerzen, Germany: (52.0500, 9.2667)
+
+Usingen, Germany: (50.3358, 8.5369)
+
+Ballinspittle, Ireland: (51.6731, -8.6300)
+
+Elfordstown, Ireland: (51.7500, -8.3300)
+
+Foggia, Italy: (41.4623, 15.5440)
+
+Marsala, Italy: (37.7972, 12.4347)
+
+Milano, Italy: (45.4642, 9.1900)
+
+Kaunas, Lithuania: (54.9000, 23.9000)
+
+Tromsø, Norway: (69.6492, 18.9553)
+
+Wola Krobowska, Poland: (52.3700, 17.1500)
+
+Alfouvar de Cima, Portugal: (38.7300, -9.2300)
+
+Coviha, Portugal: (40.1500, -8.8500)
+
+Ibi, Spain: (38.6300, -0.5700)
+
+Lepe, Spain: (37.2500, -7.2000)
+
+Villarejo de Salvanes, Spain: (40.1700, -3.2700)
+
+Chalfont Grove, UK: (51.6000, -0.5700)
+
+Fawley, UK: (50.8300, -1.3500)
+
+Goonhilly, UK: (50.0486, -5.1821)
+
+Hoo, UK: (51.4200, 0.4600)
+
+Isle of Man, UK: (54.2361, -4.5481)
+
+Morn Hill, UK: (51.0800, -1.3200)
+
+Wherstead, UK: (52.0000, 1.1600)
+
+Woodwalton, UK: (52.4000, -0.2200)
+
+Murayjat, Oman: (23.6500, 58.0000)
+
+Muallim, Turkey: (40.8700, 29.3200)
+
+Bogantungan, Australia: (-22.3300, 146.7000)
+
+Boorowa, Australia: (-34.4400, 148.7200)
+
+Broken Hill, Australia: (-31.9500, 141.4300)
+
+Bulla Bulling, Australia: (-31.1000, 121.1000)
+
+Calrossie, Australia: (-32.6800, 141.9200)
+
+Canyonleigh, Australia: (-34.5200, 149.9800)
+
+Cataby, Australia: (-30.8300, 115.5300)
+
+Cobargo, Australia: (-36.3800, 149.8800)
+
+Ki Ki, Australia: (-35.5500, 139.1500)
+
+Merredin, Australia: (-31.4800, 118.2800)
+
+Pimba, Australia: (-31.2600, 136.8000)
+
+Springbrook Creek, Australia: (-28.2300, 153.2700)
+
+Tea Gardens, Australia: (-32.6600, 152.1500)
+
+Toonpan, Australia: (-21.4500, 119.1000)
+
+Torrumbarry, Australia: (-35.9800, 144.4600)
+
+Wagin, Australia: (-33.3100, 117.3500)
+
+Warra, Australia: (-26.9300, 150.9300)
+
+Willows, Australia: (-36.2000, 146.5500)
+
+Suva, Fiji: (-18.1416, 178.4419)
+
+Awarua, New Zealand: (-46.5100, 168.3800)
+
+Cleavdon, New Zealand: (-36.7500, 174.5700)
+
+Cromwell, New Zealand: (-45.0400, 169.2000)
+
+Hinds, New Zealand: (-43.9000, 171.8500)
+
+Puwera, New Zealand: (-35.7500, 174.3300)
+
+Te Hana, New Zealand: (-36.2500, 174.5300)
+
+Falda del Carmen, Argentina: (-31.5800, -64.4500)
+
+Camaçari, Brazil: (-12.7000, -38.3200)
+
+Guarapari, Brazil: (-20.6700, -40.5000)
+
+Itaboraí, Brazil: (-22.7500, -42.8600)
+
+João Câmara, Brazil: (-5.5400, -35.8200)
+
+Luz, Brazil: (-19.8000, -45.6800)
+
+Manaus, Brazil: (-3.1000, -60.0200)
+
+Montes Carlos, Brazil: (-22.4300, -46.5700)
+
+Mossoró, Brazil: (-5.1900, -37.3400)
+
+Passa Quatro, Brazil: (-22.3900, -44.9700)
+
+Porto Alegre, Brazil: (-30.0300, -51.2000)
+
+Presidente Prudente, Brazil: (-22.1300, -51.3900)
+
+Rio Negro, Brazil: (-26.1000, -49.8000)
+
+Santana de Parnaíba, Brazil: (-23.4400, -46.9200)
+
+São Gonçalo do Amarante, Brazil: (-3.6100, -38.9700)
+
+Surubim, Brazil: (-7.8300, -35.7500)
+
+Uruguaiana, Brazil: (-29.7600, -57.0900)
+
+Caldera, Chile: (-27.0700, -70.8200)
+
+Noviciado, Chile: (-33.3900, -70.5200)
+
+Puerto Montt, Chile: (-41.4700, -72.9400)
+
+Puerto Saavedra, Chile: (-38.7800, -73.4000)
+
+Punta Arenas, Chile: (-53.1600, -70.9100)
+
+San Clemente, Chile: (-35.5400, -71.4900)
+
+Santa Elena, Chile: (-28.4700, -71.2200)
+
+Willemstad, Curaçao: (12.1000, -68.9200)
