@@ -1,11 +1,10 @@
-import os
 from collections import defaultdict
 from pathlib import Path
 from typing import List, Optional, Tuple, Set
-
 import numpy as np
 import requests
 from skyfield.api import EarthSatellite
+import random
 
 
 class Satellite:
@@ -22,7 +21,7 @@ class Satellite:
     TLE_URL = 'https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle'
 
     def __init__(self, satellite_id: int, earth_satellite: EarthSatellite, name: str, line1: str, line2: str,
-                 mean_anomaly, orbit_id: Tuple[float, float], neighbors_id: List[int] = None):
+                 mean_anomaly, position, orbit_id: Tuple[float, float], neighbors_id: List[int] = None):
         self.satellite_id = satellite_id
         self.earth_satellite = earth_satellite
         self.name = name
@@ -33,13 +32,12 @@ class Satellite:
         self.neighbors_id = neighbors_id if neighbors_id is not None else []
         self.inclination = np.degrees(earth_satellite.model.inclo)
         self.raan = np.degrees(earth_satellite.model.nodeo)
-        self.position = None  # (lat, lon, alt)
+        self.position = position  # (lat, lon, alt)
         self.velocity = None  # km/s
-        self.capacity_level = 1  # Default capacity level
         self.connected_satellites: Set[int] = set()  # Currently connected satellites
         self.connected_ground_stations: Set[str] = set()  # Currently connected ground stations
+        self.number_of_users = random.uniform(1, 2000)
 
-    @property
     def altitude(self) -> Optional[float]:
         return self.position.elevation.km if self.position else None
 
@@ -59,6 +57,14 @@ class Satellite:
         geocentric = self.earth_satellite.at(t)
         self.position = geocentric.subpoint()
         self.velocity = geocentric.velocity.km_per_s
+
+    def get_capacity(self):
+        if self.number_of_users <= 500:
+            return 1
+        elif 500 < self.number_of_users < 1500:
+            return 2
+        else:  # 1500 or more
+            return 3
 
     def can_connect_satellite(self) -> bool:
         """Check if satellite can accept another satellite connection."""
@@ -131,17 +137,25 @@ class Satellite:
         return response.text.strip().splitlines()
 
     @staticmethod
-    def parse_tle_lines(lines: List[str], ts) -> List['Satellite']:
+    def parse_tle_lines(lines: List[str], ts, skyfield_time) -> List['Satellite']:
         """
         Parses TLEs into Satellite objects with orbital parameters.
+        Only includes satellites currently above the USA.
+
         Args:
             lines (List[str]): A list of TLE data lines.
             ts: A Skyfield timescale object.
+            skyfield_time: Time at which to compute the subpoint.
+
         Returns:
-            List[Satellite]: A list of Satellite objects with orbital parameters.
+            List[Satellite]: Satellites currently over the USA.
         """
         satellites = []
         satellite_id = 0
+
+        # Rough bounding box for continental USA
+        min_lat, max_lat = 24.396308, 49.384358  # from Florida Keys to northern border
+        min_lon, max_lon = -125.0, -66.93457  # from West Coast to East Coast
 
         for i in range(0, len(lines), 3):
             if i + 2 >= len(lines):
@@ -152,23 +166,30 @@ class Satellite:
 
             try:
                 sat_obj = EarthSatellite(line1, line2, name, ts)
-                inclination = np.degrees(sat_obj.model.inclo)
-                raan = np.degrees(sat_obj.model.nodeo)
-                orbit_id = (round(inclination, 1), round(raan / 10) * 10)
-                mean_anomaly = np.degrees(sat_obj.model.mo)
+                subpoint = sat_obj.at(skyfield_time).subpoint()
+                lat, lon = subpoint.latitude.degrees, subpoint.longitude.degrees
 
-                satellite = Satellite(
-                    satellite_id=satellite_id,
-                    earth_satellite=sat_obj,
-                    name=name,
-                    line1=line1,
-                    line2=line2,
-                    orbit_id=orbit_id,
-                    mean_anomaly=mean_anomaly,
-                    neighbors_id=[]
-                )
-                satellites.append(satellite)
-                satellite_id += 1
+                # Check if satellite is over the USA
+                if min_lat <= lat <= max_lat and min_lon <= lon <= max_lon:
+                    inclination = np.degrees(sat_obj.model.inclo)
+                    raan = np.degrees(sat_obj.model.nodeo)
+                    orbit_id = (round(inclination, 1), round(raan / 10) * 10)
+                    mean_anomaly = np.degrees(sat_obj.model.mo)
+
+                    satellite = Satellite(
+                        satellite_id=satellite_id,
+                        earth_satellite=sat_obj,
+                        name=name,
+                        line1=line1,
+                        line2=line2,
+                        orbit_id=orbit_id,
+                        mean_anomaly=mean_anomaly,
+                        neighbors_id=[],
+                        position=subpoint
+                    )
+                    satellites.append(satellite)
+                    satellite_id += 1
+
             except Exception as e:
                 print(f"Skipping malformed TLE {name}: {e}")
 
@@ -205,7 +226,7 @@ class Satellite:
 
                 for neighbor_sat in neighbors:
 
-                    if graph_manager.satellite_to_satellite_los(graph_manager, sat.earth_satellite,
+                    if graph_manager.satellite_to_satellite_los(sat.earth_satellite,
                                                                 neighbor_sat.earth_satellite, skyfield_time):
                         sat.neighbors_id.append(neighbor_sat.satellite_id)
                         graph_manager.add_orbit_edge(sat, neighbor_sat, skyfield_time)
@@ -226,7 +247,7 @@ class Satellite:
         tle_lines = cls.download_tle_data(cls.TLE_URL)
 
         print("Parsing TLEs...")
-        satellites_data = cls.parse_tle_lines(tle_lines, ts)
+        satellites_data = cls.parse_tle_lines(tle_lines, ts, skyfield_time)
         graph_manager.add_satellites(satellites_data)
         print("Grouping satellites by orbit and assigning neighbors...")
         satellites_with_neighbors = cls.group_by_orbit(satellites_data, graph_manager, skyfield_time)

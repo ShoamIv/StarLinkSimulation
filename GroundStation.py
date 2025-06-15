@@ -1,8 +1,26 @@
+import random
+
+
 class GroundStation:
+    CAPACITY_LATENCY_PENALTY_MS = {
+        1: 10,
+        2: 100,
+        3: 500
+    }
+
     def __init__(self, name, latitude, longitude):
         self.name = name
         self.latitude = latitude
         self.longitude = longitude
+        self.number_of_users = random.uniform(1, 2000)
+
+    def get_capacity(self):
+        if self.number_of_users <= 500:
+            return 1
+        elif 500 < self.number_of_users < 1500:
+            return 2
+        else:  # 1500 or more
+            return 3
 
     def __repr__(self):
         return f"GroundStation(name='{self.name}', latitude={self.latitude}, longitude={self.longitude})"

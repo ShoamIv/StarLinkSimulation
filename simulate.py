@@ -1,140 +1,202 @@
-from skyfield.api import load, utc, Topos
+from skyfield.api import load, utc
 from datetime import datetime, timedelta
 import simplekml
 import GroundStation
 import Satellite
 import Graph_Manager
-from typing import List
 import os
+from pathlib import Path
 
-# Build the graph
+RESOURCES_DIR = Path(__file__).parent / "resources"
+
+# Build the graph manager
 graph_mgr = Graph_Manager.GraphManager()
-# Prepare time (single snapshot)
+
+# Prepare time & timescale for simulation steps
 ts = load.timescale()
-current_time = datetime.utcnow().replace(tzinfo=utc)
-skyfield_time = ts.from_datetime(current_time)
+start_time = datetime.utcnow().replace(tzinfo=utc)
 
 # Load ground stations
 manager = GroundStation.GroundStationManager()
-manager.load_from_file('ground_stations_global.txt')
-graph_mgr.add_ground_stations(manager)
-Satellite.extractor(graph_mgr, ts, skyfield_time)
-all_satellites = graph_mgr.get_satellites()
-G = graph_mgr.get_graph()
+file_path = RESOURCES_DIR / "ground_stations_global.txt"
+manager.load_from_file(file_path)
 
-print(f"Total satellites loaded: {len(all_satellites)}")
-# Create KML
+# Number of steps & step interval in minutes
+num_steps = 10
+step_minutes = 6
+
+# Create KML container
 kml = simplekml.Kml()
-all_satellites = all_satellites[:50]
-# Simulation loop
-for step in range(10):
-    current_time = current_time + timedelta(minutes=step * 6)
 
-    # Update positions and build graph
+for step in range(num_steps):
+    current_time = start_time + timedelta(minutes=step * step_minutes)
+    next_time = current_time + timedelta(minutes=step_minutes)
+    skyfield_time = ts.from_datetime(current_time)
+
+    # Define TimeSpan for this time step
+    time_span = simplekml.TimeSpan(
+        begin=current_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        end=next_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+    )
+
+    # Clear graph and reload fresh for each time step (if needed)
+    graph_mgr.clear()  # Add this method if you want to reset the graph each step
+    graph_mgr.add_ground_stations(manager)
+    Satellite.extractor(graph_mgr, ts, skyfield_time)
+    all_satellites = graph_mgr.get_satellites()
+
+    # Update satellite positions for current time
     for sat in all_satellites:
         sat.update_position(ts, current_time)
 
-    graph_mgr = Graph_Manager.GraphManager()
-    graph_mgr.add_ground_stations(manager)
-    graph_mgr.add_satellites(all_satellites)
+    graph_mgr.add_satellite_to_satellite_edges(ts, skyfield_time)
+    graph_mgr.add_ground_to_satellite_edges(ts, skyfield_time)
 
-    #for sat in all_satellites:
-        #sat.reset_connections()
-
-    # Get the graph instance
+    graph_mgr.create_users()
     G = graph_mgr.get_graph()
 
-    # Add neighbor connections as edges
-    for sat in all_satellites:
-        sat_node = f"Satellite_{sat.satellite_id}"
+    # Create a KML folder per step/time
+    step_folder = kml.newfolder(name=f"Step {step} - {current_time.strftime('%Y-%m-%d %H:%M UTC')}")
 
-        # Only proceed if this satellite exists in the graph
-        if not G.has_node(sat_node):
-            continue
+    # Subfolders for better organization
+    gs_folder = step_folder.newfolder(name="Ground Stations")
+    sat_folder = step_folder.newfolder(name="Satellites")
+    users_folder = step_folder.newfolder(name="Users")
+    gs_links_folder = step_folder.newfolder(name="Ground-Satellite Links")
+    sat_links_folder = step_folder.newfolder(name="Satellite-to-Satellite Links")
+    shortest_path_folder = step_folder.newfolder(name="Shortest Path")
 
-        for neighbor_id in sat.neighbors_id:
-            neighbor_node = f"Satellite_{neighbor_id}"
-
-            # Check if neighbor exists in our satellite list and in the graph
-            neighbor_exists = any(s.satellite_id == neighbor_id for s in all_satellites)
-            if not neighbor_exists or not G.has_node(neighbor_node):
-                continue
-
-            # Get both satellite objects
-            neighbor = next(s for s in all_satellites if s.satellite_id == neighbor_id)
-            # Add edge with attributes
-            G.add_edge(sat_node, neighbor_node,
-                       weight=1000,  # weight in km
-                       distance=100,
-                       signal_strength=1.0,
-                       connection_type='neighbor',
-                       time_step=step)
-
-    # KML visualization
-    folder = kml.newfolder(name=f"Step {step} - {current_time.strftime('%H:%M')}")
-    gs_folder = folder.newfolder(name="Ground Stations")
-    sat_folder = folder.newfolder(name="Satellites")
-    links_folder = folder.newfolder(name="Visible Links")
-    neighbor_links_folder = folder.newfolder(name="Neighbor Links")
-
-    # Add ground stations to KML
-    #for gs in manager.ground_stations:
-     #   pnt = gs_folder.newpoint(name=gs.name,
-      #                           coords=[(gs.longitude, gs.latitude)])
-       # pnt.style.iconstyle.icon.href = 'http://maps.google.com/mapfiles/kml/pushpin/red-pushpin.png'
-       # pnt.timestamp.when = current_time.isoformat()
-
-    # Add satellites to KML
-    for sat in all_satellites:
-        pnt = sat_folder.newpoint(name=f"Sat {sat.satellite_id}",
-                                  coords=[(sat.longitude, sat.latitude, sat.altitude * 1000)])
+    # Add ground stations
+    for gs in graph_mgr.get_ground_stations():
+        pnt = gs_folder.newpoint(
+            name=f"GS-{gs.name}",
+            coords=[(gs.longitude, gs.latitude, 0)]
+        )
         pnt.altitudemode = simplekml.AltitudeMode.absolute
-        pnt.style.iconstyle.icon.href = 'http://maps.google.com/mapfiles/kml/paddle/wht-blank.png'
-        pnt.style.iconstyle.scale = 0.7
-        pnt.timestamp.when = current_time.isoformat()
+        pnt.style.iconstyle.icon.href = 'http://maps.google.com/mapfiles/kml/shapes/communications.png'
+        pnt.style.iconstyle.color = simplekml.Color.green
+        pnt.style.iconstyle.scale = 1.1
+        pnt.timespan = time_span  # ✅ Apply time span
 
-    # Draw all edges from the graph
+    # Add satellites
+    for gs in graph_mgr.get_ground_stations():
+        pnt = gs_folder.newpoint(
+            name=f"GS-{gs.name}",
+            coords=[(gs.longitude, gs.latitude, 0)]
+        )
+        pnt.altitudemode = simplekml.AltitudeMode.absolute
+        pnt.style.iconstyle.icon.href = 'http://maps.google.com/mapfiles/kml/shapes/communications.png'
+        pnt.style.iconstyle.color = simplekml.Color.green
+        pnt.style.iconstyle.scale = 1.1
+        pnt.timespan = time_span  # ✅ Apply time span
+
+    # Add users
+    for user in graph_mgr.users:
+        user_pnt = users_folder.newpoint(
+            name=f"User {user.user_id}",
+            coords=[(user.longitude, user.latitude, 0)]
+        )
+        user_pnt.altitudemode = simplekml.AltitudeMode.absolute
+        user_pnt.style.iconstyle.icon.href = 'http://maps.google.com/mapfiles/kml/paddle/purple-stars.png'
+        user_pnt.style.iconstyle.scale = 1.2
+        user_pnt.timespan = time_span  # ✅ Apply time span
+
+    # Add edges / links
     for u, v, data in G.edges(data=True):
         node_u = G.nodes[u]
         node_v = G.nodes[v]
-        coords = []
 
-        # Get coordinates for both nodes
-        for node_data in (node_u, node_v):
-            if node_data['type'] == 'ground_station':
-                gs = node_data['obj']
-                coords.append((gs.longitude, gs.latitude, 0))
-            elif node_data['type'] == 'satellite':
-                sat_obj = node_data['obj']
-                coords.append((sat_obj.longitude, sat_obj.latitude, sat_obj.altitude * 1000))
+        coord_u = graph_mgr.get_coords(node_u)
+        coord_v = graph_mgr.get_coords(node_v)
 
-        if len(coords) != 2:
+        if not coord_u or not coord_v:
             continue
 
-        # Create the appropriate link based on connection type
-        if data.get('connection_type') == 'neighbor':
-            line = neighbor_links_folder.newlinestring(name=f"{u} to {v}", coords=coords)
-            line.style.linestyle.color = simplekml.Color.blue
-            line.style.linestyle.width = 2
-        else:  # ground connections
-            a=1
-            #line = links_folder.newlinestring(name=f"{u} to {v}", coords=coords)
-            #line.style.linestyle.color = simplekml.Color.green
-            #line.style.linestyle.width = 1
+        coords = [coord_u, coord_v]
 
-        # Common line properties
+        connection_type = data.get('connection_type', 'unknown')
+        distance = data.get('distance', 0)
+
+        if connection_type == 'satellite':
+            line = sat_links_folder.newlinestring(
+                name=f"Sat Link {u} to {v} ({distance:.1f} km)",
+                coords=coords
+            )
+            line.style.linestyle.color = simplekml.Color.red
+            line.style.linestyle.width = 1
+        elif connection_type == 'ground_station':
+            line = gs_links_folder.newlinestring(
+                name=f"Ground Link {u} to {v} ({distance:.1f} km)",
+                coords=coords
+            )
+            line.style.linestyle.color = simplekml.Color.green
+            line.style.linestyle.width = 1
+        elif any((isinstance(node, dict) and node.get('type') == 'user') for node in [node_u, node_v]):
+            line = gs_links_folder.newlinestring(
+                name=f"User Link {u} to {v} ({distance:.1f} km)",
+                coords=coords
+            )
+            line.style.linestyle.color = simplekml.Color.purple
+            line.style.linestyle.width = 3
+        else:
+            # Other types of links (optional)
+            line = gs_links_folder.newlinestring(
+                name=f"Link {u} to {v} ({distance:.1f} km)",
+                coords=coords
+            )
+            line.style.linestyle.color = simplekml.Color.gray
+            line.style.linestyle.width = 1
+
         line.altitudemode = simplekml.AltitudeMode.absolute
         line.extrude = 0
         line.tessellate = 1
-        line.timespan.begin = current_time.isoformat()
-        line.timespan.end = (current_time + timedelta(minutes=6)).isoformat()
+        line.timespan = time_span
+
+    if graph_mgr.users:
+        user1 = graph_mgr.users[0]
+        closest_gs = graph_mgr.find_closest_ground_station(user1)
+
+        if closest_gs is not None:
+            path, length = graph_mgr.find_shortest_path(source=user1, target=closest_gs)
+        else:
+            path = None
+
+        if path:
+            path_edges = set()
+            for i in range(len(path)-1):
+                path_edges.add((path[i], path[i+1]))
+                path_edges.add((path[i+1], path[i]))
+
+            for (u, v) in path_edges:
+                #node_u = implement here get node same to node_v
+                node_v = graph_mgr.get_coords(v)
+                coords = [(node_u.longitude, node_u.latitude, node_u.altitude() * 1000),
+                          (node_v.longitude, node_v.latitude, node_v.altitude() * 1000)]
+
+                line = shortest_path_folder.newlinestring(
+                    name=f"Path {u} -> {v}",
+                    coords=coords
+                )
+                line.style.linestyle.color = simplekml.Color.yellow  # ✅ Different color
+                line.style.linestyle.width = 3  # ✅ Thicker
+                line.altitudemode = simplekml.AltitudeMode.absolute
+                line.extrude = 0
+                line.tessellate = 1
+                line.timespan = time_span
+
+
+# Optional: Set a camera for the whole KML
+kml.document.camera = simplekml.Camera(
+    longitude=0, latitude=0, altitude=50000 * 1000,
+    heading=0, tilt=90, roll=0,
+    altitudemode=simplekml.AltitudeMode.absolute
+)
 
 # Save KML file
 output_dir = "output"
-if not os.path.exists(output_dir):
-    os.makedirs(output_dir)
-
-timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-kml_filename = os.path.join(output_dir, f"starlink_simulation_{timestamp}.kml")
+os.makedirs(output_dir, exist_ok=True)
+timestamp = start_time.strftime("%Y%m%d_%H%M%S")
+kml_filename = os.path.join(output_dir, f"satellite_sim_{timestamp}.kml")
 kml.save(kml_filename)
+
 print(f"KML file saved as: {kml_filename}")

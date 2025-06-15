@@ -1,10 +1,14 @@
 import networkx as nx
+from skyfield.api import wgs84
 from skyfield.api import Topos
 import numpy as np
 import math
 import random
 from typing import Dict, List, Tuple, Optional
+
+from GroundStation import GroundStation
 from Satellite import Satellite
+from User import User
 
 
 class GraphManager:
@@ -13,6 +17,7 @@ class GraphManager:
         self.sat_nodes = {}  # Map satellite_id -> node name in graph
         self.gs_nodes = {}  # Map ground station name -> node name in graph
         self.earth_radius = 6371.0  # Earth radius in km
+        self.users = []
 
     def get_satellites(self):
         """Returns all Satellite objects stored in graph nodes.
@@ -29,6 +34,16 @@ class GraphManager:
                     satellites.append(node_data['obj'])
 
         return satellites
+
+    def get_ground_stations(self):
+        """Returns all GroundStation objects stored in graph nodes (from self.gs_nodes)."""
+        ground_stations = []
+        for gs_name, node_name in self.gs_nodes.items():
+            if node_name in self.G.nodes:
+                node_data = self.G.nodes[node_name]
+                if 'obj' in node_data:  # Assuming 'obj' stores the GroundStation object
+                    ground_stations.append(node_data['obj'])
+        return ground_stations
 
     def add_ground_stations(self, ground_station_manager):
         """
@@ -61,20 +76,6 @@ class GraphManager:
                             )
             self.sat_nodes[sat.satellite_id] = node_name
 
-    def lat_lon_alt_to_cartesian(self, lat_deg, lon_deg, alt_km):
-        """
-        Convert latitude, longitude, altitude to cartesian coordinates (km).
-        """
-        lat_rad = math.radians(lat_deg)
-        lon_rad = math.radians(lon_deg)
-        r = self.earth_radius + alt_km
-
-        x = r * math.cos(lat_rad) * math.cos(lon_rad)
-        y = r * math.cos(lat_rad) * math.sin(lon_rad)
-        z = r * math.sin(lat_rad)
-
-        return np.array([x, y, z])
-
     def calculate_distance_3d(self, pos1, pos2):
         """
         Calculate 3D Euclidean distance between two positions.
@@ -83,23 +84,25 @@ class GraphManager:
 
     def satellite_to_groundstation_los(self, sat, gs_obj, time):
         """
-        Check LOS between satellite and ground station using Skyfield.
-        Returns True if satellite is above horizon (>0 degrees altitude).
+        Check Line of Sight (LOS) between satellite and ground station.
+        Returns True if satellite is above the local horizon (>0° elevation).
         """
-        skyfield_sat = sat
         try:
-            gs_topos = Topos(latitude_degrees=gs_obj.latitude, longitude_degrees=gs_obj.longitude)
-            difference = skyfield_sat - gs_topos
-            topocentric = difference.at(time)
+            # Create ground station position using WGS84
+            gs_location = wgs84.latlon(gs_obj.latitude, gs_obj.longitude)
+
+            # Compute vector from GS to satellite at current time
+            topocentric = (sat - gs_location).at(time)
             alt, az, distance = topocentric.altaz()
-            return alt.degrees > 0
+
+            # Return True if satellite is above the horizon
+            return alt.degrees > 0, distance.km
         except Exception as e:
             print(f"Error in satellite_to_groundstation_los: {e}")
-            return False
-
+            return False, None
 
     @staticmethod
-    def satellite_to_satellite_los(self, sat1, sat2, time):
+    def satellite_to_satellite_los(sat1, sat2, time):
         """
         Check LOS between two satellites by verifying Earth does not block the line between them.
         Uses improved geometric calculation.
@@ -132,7 +135,7 @@ class GraphManager:
             min_distance_to_earth = np.linalg.norm(closest_point)
 
             # Add small buffer to Earth radius to account for atmosphere
-            return min_distance_to_earth > (self.earth_radius + 100)  # 100km buffer
+            return min_distance_to_earth > (6371.0 + 100)  # 100km buffer
 
         except Exception as e:
             print(f"Error in satellite_to_satellite_los: {e}")
@@ -183,224 +186,234 @@ class GraphManager:
             distance=distance,
             connection_type='satellite'
         )
-    def add_edges(self, satellites, time):
-        """
-        Add edges based on LOS and shortest distance, respecting connection limits.
-        Enhanced with proper distance calculations and edge weights.
-        """
-        skyfield_satellites = []
-        for sat in satellites:
-            skyfield_satellites.append(sat.earth_satellite)
-        # Clear existing edges
-        self.G.clear_edges()
-        # Satellite-to-ground station connections
-        for sat_id, sat_node in self.sat_nodes.items():
-            sat_obj = self.G.nodes[sat_node]['obj']
-            if sat_id >= len(skyfield_satellites):
+
+    def add_ground_to_satellite_edges(self, ts, time):
+        print("Checking Ground Station/User to Satellite LOS...")
+
+        satellites = self.get_satellites()
+        ground_stations_or_users = self.get_ground_stations()
+        ground_stations_or_users.extend(self.users)
+
+        for sat_obj in satellites:
+            sat_obj.update_position(ts, time.utc_datetime())
+
+        for gs_obj in ground_stations_or_users:
+            gs_node_key = None
+            if hasattr(gs_obj, 'name'):
+                gs_node_key = self.gs_nodes.get(gs_obj.name)
+            elif hasattr(gs_obj, 'user_id'):
+                gs_node_key = self.gs_nodes.get(str(gs_obj.user_id))
+
+            if gs_node_key is None or gs_node_key not in self.G.nodes:
+                print(
+                    f"Warning: Ground Station/User object {gs_obj} (mapped to {gs_node_key}) not found in graph nodes.")
                 continue
 
-            sky_sat = skyfield_satellites[sat_id]
-            possible_gs = []
+            for sat_obj in satellites:
+                sat_node_name = self.sat_nodes.get(sat_obj.satellite_id)
+                if sat_node_name is None or sat_node_name not in self.G.nodes:
+                    continue
 
-            # Get satellite position in cartesian coordinates
-            sat_pos_skyfield = sky_sat.at(time).position.km
+                is_los, distance_km = self.satellite_to_groundstation_los(sat_obj.earth_satellite, gs_obj, time)
+                if is_los and not self.G.has_edge(gs_node_key, sat_node_name):
+                    self.G.add_edge(
+                        gs_node_key,
+                        sat_node_name,
+                        weight=distance_km,
+                        distance=distance_km,
+                        connection_type='ground_station'
+                    )
 
-            for gs_name, gs_node in self.gs_nodes.items():
-                gs_obj = self.G.nodes[gs_node]['obj']
+    def add_satellite_to_satellite_edges(self, ts, time):
+        print("Checking Inter-Satellite LOS...")
+        self.G.remove_edges_from([
+            (u, v) for u, v, d in self.G.edges(data=True) if d.get("connection_type") == "satellite"
+        ])
+        satellites = self.get_satellites()
+        num_satellites = len(satellites)
 
-                if self.satellite_to_groundstation_los(sky_sat, gs_obj, time):
-                    # Convert ground station to cartesian coordinates
-                    gs_pos = self.lat_lon_alt_to_cartesian(gs_obj.latitude, gs_obj.longitude, 0)
-                    distance = self.calculate_distance_3d(sat_pos_skyfield, gs_pos)
-                    signal_strength = self.calculate_signal_strength(distance, 'ground')
-
-                    possible_gs.append((distance, gs_node, gs_obj, signal_strength))
-
-            # Sort ground stations by distance (closest first)
-            possible_gs.sort(key=lambda x: x[0])
-
-            # Connect to closest available ground stations
-            for distance, gs_node, gs_obj, signal_strength in possible_gs:
-                if sat_obj.can_connect_ground_station():
-                    if not self.G.has_edge(sat_node, gs_node):
-                        # Add edge with weight (lower weight = better connection)
-                        weight = distance / 1000.0  # Convert to thousands of km for reasonable weights
-                        self.G.add_edge(sat_node, gs_node,
-                                        weight=weight,
-                                        distance=distance,
-                                        signal_strength=signal_strength,
-                                        connection_type='ground')
-                        sat_obj.connect_ground_station(gs_obj.name)
-
-        # Satellite-to-satellite connections
-        sat_ids = list(self.sat_nodes.keys())
-        for i in range(len(sat_ids)):
-            sat1_id = sat_ids[i]
-            if sat1_id >= len(skyfield_satellites):
+        for i in range(num_satellites):
+            sat1_obj = satellites[i]
+            sat1_node_name = self.sat_nodes.get(sat1_obj.satellite_id)
+            if sat1_node_name is None or sat1_node_name not in self.G.nodes:
                 continue
 
-            sat1_node = self.sat_nodes[sat1_id]
-            sat1_obj = self.G.nodes[sat1_node]['obj']
-            sky_sat1 = skyfield_satellites[sat1_id]
-
-            # Build list of other satellites with LOS and distance
-            candidate_sats = []
-            for j in range(len(sat_ids)):
-                if i == j:
+            for j in range(i + 1, num_satellites):
+                sat2_obj = satellites[j]
+                sat2_node_name = self.sat_nodes.get(sat2_obj.satellite_id)
+                if sat2_node_name is None or sat2_node_name not in self.G.nodes:
                     continue
 
-                sat2_id = sat_ids[j]
-                if sat2_id >= len(skyfield_satellites):
-                    continue
+                sat_earth1 = sat1_obj.earth_satellite
+                sat_earth2 = sat2_obj.earth_satellite
 
-                sat2_node = self.sat_nodes[sat2_id]
-                sat2_obj = self.G.nodes[sat2_node]['obj']
-                sky_sat2 = skyfield_satellites[sat2_id]
+                if self.satellite_to_satellite_los(sat_earth1, sat_earth2, time):
+                    pos1_eci = sat_earth1.at(time).position.km
+                    pos2_eci = sat_earth2.at(time).position.km
+                    distance_km = self.calculate_distance_3d(pos1_eci, pos2_eci)
 
-                if self.satellite_to_satellite_los(self, sky_sat1, sky_sat2, time):
-                    pos1 = sky_sat1.at(time).position.km
-                    pos2 = sky_sat2.at(time).position.km
-                    distance = self.calculate_distance_3d(pos1, pos2)
-                    signal_strength = self.calculate_signal_strength(distance, 'satellite')
-                    candidate_sats.append((distance, sat2_node, sat2_obj, signal_strength))
+                    max_inter_sat_range = 3000.0
+                    if distance_km < max_inter_sat_range and not self.G.has_edge(sat1_node_name, sat2_node_name):
+                        signal_strength = self.calculate_signal_strength(distance_km, 'satellite')
+                        self.G.add_edge(
+                            sat1_node_name,
+                            sat2_node_name,
+                            weight=distance_km,
+                            distance=distance_km,
+                            signal_strength=signal_strength,
+                            connection_type='satellite'
+                        )
+                        print(
+                            f"  Connected {sat1_node_name} to {sat2_node_name} (Inter-Sat LOS, dist: {distance_km:.0f} km)")
 
-            # Sort by distance and connect up to limit
-            candidate_sats.sort(key=lambda x: x[0])
-            for distance, sat2_node, sat2_obj, signal_strength in candidate_sats:
-                if (sat1_obj.can_connect_satellite() and
-                        sat2_obj.can_connect_satellite() and
-                        not self.G.has_edge(sat1_node, sat2_node)):
-                    # Add edge with weight
-                    weight = distance / 500.0  # Satellite connections have different scale
-                    self.G.add_edge(sat1_node, sat2_node,
-                                    weight=weight,
-                                    distance=distance,
-                                    signal_strength=signal_strength,
-                                    connection_type='satellite')
-                    sat1_obj.connect_satellite(sat2_obj.satellite_id)
-                    sat2_obj.connect_satellite(sat1_obj.satellite_id)
-
-    def find_shortest_path(self, source, target, weight='weight'):
+    def geographic_distance(self, coords1, coords2):
         """
-        Find shortest path between two nodes using Dijkstra's algorithm.
+        Calculate the haversine distance between two points.
+
         Args:
-            source: Source node name
-            target: Target node name
-            weight: Edge attribute to use as weight ('weight', 'distance', etc.)
+            coords1, coords2: tuples (lon, lat, alt) - alt is ignored here.
 
         Returns:
-            Tuple of (path, total_weight) or (None, None) if no path exists
+            Distance in kilometers.
         """
+        from math import radians, sin, cos, sqrt, atan2
+
+        lon1, lat1, _ = coords1
+        lon2, lat2, _ = coords2
+
+        R = 6371.0  # Earth radius in km
+
+        dlat = radians(lat2 - lat1)
+        dlon = radians(lon2 - lon1)
+
+        a = sin(dlat / 2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon / 2) ** 2
+        c = 2 * atan2(sqrt(a), sqrt(1 - a))
+
+        return R * c
+
+    def get_node_latency_penalty(self, node):
+        attr = self.G.nodes[node]  # Get node attributes
+        node_type = attr.get('type')
+
+        if node_type == 'ground_station':
+            gs_obj = attr.get('obj')
+            if gs_obj:
+                capacity = gs_obj.get_capacity()  # call method on the object
+                return GroundStation.CAPACITY_LATENCY_PENALTY_MS.get(capacity, 0)
+        elif node_type == 'satellite':
+            sat_obj = attr.get('obj')
+            if sat_obj:
+                capacity = sat_obj.get_capacity()
+                return Satellite.CAPACITY_LATENCY_PENALTY_MS.get(capacity, 0)
+
+        return 0
+
+    def weight_with_node_penalty(self, u, v, edge_attr):
+        edge_weight = edge_attr.get('weight', 1)
+
+        # Skip penalty for user nodes
+        node_u_attr = self.G.nodes[u]
+        if node_u_attr.get('type') == 'user':
+            node_penalty = 0
+        else:
+            node_penalty = self.get_node_latency_penalty(u)
+
+        return edge_weight + node_penalty
+
+    def find_shortest_path(self, source, target):
         try:
-            if source not in self.G.nodes or target not in self.G.nodes:
-                return None, None
-
-            path = nx.shortest_path(self.G, source, target, weight=weight)
-            path_length = nx.shortest_path_length(self.G, source, target, weight=weight)
-
-            return path, path_length
+            path = nx.shortest_path(self.G, source=source, target=target, weight=self.weight_with_node_penalty)
+            length = nx.shortest_path_length(self.G, source=source, target=target, weight=self.weight_with_node_penalty)
+            return path, length
         except nx.NetworkXNoPath:
-            return None, None
-        except Exception as e:
-            print(f"Error finding shortest path: {e}")
+            print(f"No path between {source} and {target}")
             return None, None
 
-    def find_all_shortest_paths(self, source, weight='weight'):
+    def find_closest_ground_station(self, source):
+        ground_stations = [node for node, attr in self.G.nodes(data=True) if attr.get('type') == 'ground_station']
+        min_distance = float('inf')
+        closest_gs = None
+
+        for gs in ground_stations:
+            try:
+                dist = nx.shortest_path_length(self.G, source=source, target=gs, weight=self.weight_with_node_penalty)
+                if dist < min_distance:
+                    min_distance = dist
+                    closest_gs = gs
+            except nx.NetworkXNoPath:
+                continue
+
+        return closest_gs
+
+    def send_data_to_closest_gs(self, source, weight='weight'):
         """
-        Find shortest paths from source to all other reachable nodes.
-
-        Returns:
-            Dictionary of {target: (path, distance)}
-        """
-        try:
-            if source not in self.G.nodes:
-                return {}
-
-            paths = nx.single_source_dijkstra(self.G, source, weight=weight)
-            distances, routes = paths
-
-            result = {}
-            for target in distances:
-                if target != source:
-                    result[target] = (routes[target], distances[target])
-
-            return result
-        except Exception as e:
-            print(f"Error finding all shortest paths: {e}")
-            return {}
-
-    def find_best_ground_station_path(self, source_gs, target_gs):
-        """
-        Find the best path between two ground stations through the satellite network.
-        """
-        if source_gs not in self.gs_nodes or target_gs not in self.gs_nodes:
-            return None, None
-
-        source_node = self.gs_nodes[source_gs]
-        target_node = self.gs_nodes[target_gs]
-
-        return self.find_shortest_path(source_node, target_node)
-
-    def send_data(self, source: str, target: str, weight: str = 'weight') -> Optional[Dict]:
-        """
-        Simulate sending data from source to target node over the shortest path.
+        Send data from source to the closest ground station.
 
         Args:
-            source (str): The starting node name (ground station or satellite).
-            target (str): The destination node name.
-            weight (str): Edge attribute used for shortest path calculation (default: 'weight').
+            source: source node key in graph.
+            weight: edge attribute for shortest path calculation.
 
         Returns:
-            dict with details if path exists, or None if not reachable.
+            Result dict from send_data, or None.
         """
-        path, total_cost = self.find_shortest_path(source, target, weight=weight)
-
-        if path is None:
-            print(f"No path found between {source} and {target}.")
+        closest_gs = self.find_closest_ground_station(source)
+        if closest_gs is None:
+            print(f"No ground station reachable from source '{source}'")
             return None
 
-        total_distance = 0.0
-        min_signal_strength = float('inf')
-        hop_info = []
-
-        for i in range(len(path) - 1):
-            u, v = path[i], path[i + 1]
-            edge = self.G[u][v]
-
-            hop_info.append({
-                'from': u,
-                'to': v,
-                'distance_km': edge.get('distance', 0.0),
-                'signal_strength': edge.get('signal_strength', 0.0),
-                'connection_type': edge.get('connection_type', 'unknown')
-            })
-
-            total_distance += edge.get('distance', 0.0)
-            min_signal_strength = min(min_signal_strength, edge.get('signal_strength', 1.0))
-
-        result = {
-            'path': path,
-            'hops': hop_info,
-            'total_hops': len(path) - 1,
-            'total_distance_km': round(total_distance, 2),
-            'path_cost': round(total_cost, 4),
-            'min_signal_strength': round(min_signal_strength, 4)
-        }
-
-        print(f"Data sent from {source} to {target}:")
-        for hop in hop_info:
-            print(
-                f"  {hop['from']} -> {hop['to']} | Distance: {hop['distance_km']:.1f} km | Signal: {hop['signal_strength']:.2f}")
-
-        print(f"Total path cost: {result['path_cost']}, Total distance: {result['total_distance_km']} km")
-        print(f"Minimum signal strength on path: {result['min_signal_strength']}")
-        print(f"Total hops: {result['total_hops']}")
-
-        return result
-
+        # Call your main send_data method with source and target
+        return self.send_data(source, closest_gs, weight=weight)
 
     def get_graph(self):
         """
         Return the NetworkX graph object.
         """
         return self.G
+
+    def create_users(self):
+        """Creates user nodes and adds them to the graph."""
+
+        # New York
+        user1 = User(1, 43.238949, 76.889709)
+        self.G.add_node(
+            user1,
+            type="user",
+            latitude=user1.latitude,
+            longitude=user1.longitude,
+            altitude=0.0,
+        )
+        self.users.append(user1)
+        self.gs_nodes[str(user1.user_id)] = user1  # <-- Add to gs_nodes
+
+        # Los Angeles
+        user2 = User(2, 47.105045, 51.924622)
+        self.G.add_node(
+            user2,
+            type="user",
+            latitude=user2.latitude,
+            longitude=user2.longitude,
+            altitude=0.0,
+        )
+        self.users.append(user2)
+        self.gs_nodes[str(user2.user_id)] = user2
+
+    def get_coords(self,node):
+        if 'type' in node:
+            if node['type'] == 'ground_station':
+                return node['longitude'], node['latitude'], 0
+            elif node['type'] == 'user':
+                return node['longitude'], node['latitude'], 0
+            elif node['type'] == 'satellite':
+                sat_obj = node.get('obj', None)
+                if sat_obj:
+                    return sat_obj.longitude, sat_obj.latitude, sat_obj.altitude() * 1000
+        return None
+
+    def clear(self):
+        self.G.clear()  # Clears all nodes and edges
+        self.users = []
+        self.sat_nodes = {}
+        self.gs_nodes = {}
+
+
+
