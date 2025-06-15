@@ -6,8 +6,73 @@ import Satellite
 import Graph_Manager
 import os
 from pathlib import Path
+import math
 
 RESOURCES_DIR = Path(__file__).parent / "resources"
+
+
+def validate_coordinate(coord):
+    """Validate that coordinate values are finite and reasonable"""
+    if coord is None:
+        return False
+    if isinstance(coord, (list, tuple)) and len(coord) >= 2:
+        lon, lat = coord[0], coord[1]
+        alt = coord[2] if len(coord) > 2 else 0
+
+        # Check for valid ranges and finite values
+        if (not math.isfinite(lon) or not math.isfinite(lat) or not math.isfinite(alt) or
+                abs(lon) > 180 or abs(lat) > 90 or alt < -1000 or alt > 1000000):
+            return False
+        return True
+    return False
+
+
+def create_point(folder, name, coords, icon_href, color, scale=1.0, time_span=None):
+    """Safely create a KML point with validation"""
+    try:
+        if not validate_coordinate(coords[0]):
+            print(f"Warning: Invalid coordinates for {name}: {coords}")
+            return None
+
+        pnt = folder.newpoint(coords=coords)
+        pnt.altitudemode = simplekml.AltitudeMode.absolute
+        pnt.style.iconstyle.icon.href = icon_href
+        pnt.style.iconstyle.color = color
+        pnt.style.iconstyle.scale = scale
+
+        if time_span:
+            pnt.timespan = time_span
+
+        return pnt
+    except Exception as e:
+        print(f"Error creating point {name}: {e}")
+        return None
+
+
+def create_line(folder, name, coords, color, width, time_span=None):
+    """Safely create a KML line with validation"""
+    try:
+        # Validate all coordinates in the line
+        for coord in coords:
+            if not validate_coordinate(coord):
+                print(f"Warning: Invalid coordinates in line {name}: {coord}")
+                return None
+
+        line = folder.newlinestring(name=name, coords=coords)
+        line.style.linestyle.color = color
+        line.style.linestyle.width = width
+        line.altitudemode = simplekml.AltitudeMode.absolute
+        line.extrude = 0
+        line.tessellate = 1
+
+        if time_span:
+            line.timespan = time_span
+
+        return line
+    except Exception as e:
+        print(f"Error creating line {name}: {e}")
+        return None
+
 
 # Build the graph manager
 graph_mgr = Graph_Manager.GraphManager()
@@ -20,40 +85,52 @@ start_time = datetime.utcnow().replace(tzinfo=utc)
 manager = GroundStation.GroundStationManager()
 file_path = RESOURCES_DIR / "ground_stations_global.txt"
 manager.load_from_file(file_path)
+graph_mgr.add_ground_stations(manager)
+graph_mgr.create_users()
+G = graph_mgr.get_graph()
 
 # Number of steps & step interval in minutes
-num_steps = 10
+num_steps = 3  # Start small for testing
 step_minutes = 6
 
 # Create KML container
 kml = simplekml.Kml()
 
+print(f"Starting simulation with {num_steps} steps...")
+
 for step in range(num_steps):
+    print(f"Processing step {step + 1}/{num_steps}...")
+
     current_time = start_time + timedelta(minutes=step * step_minutes)
     next_time = current_time + timedelta(minutes=step_minutes)
     skyfield_time = ts.from_datetime(current_time)
 
     # Define TimeSpan for this time step
-    time_span = simplekml.TimeSpan(
-        begin=current_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        end=next_time.strftime("%Y-%m-%dT%H:%M:%SZ")
-    )
+    try:
+        time_span = simplekml.TimeSpan(
+            begin=current_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            end=next_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+        )
+    except Exception as e:
+        print(f"Error creating timespan for step {step}: {e}")
+        continue
 
-    # Clear graph and reload fresh for each time step (if needed)
-    graph_mgr.clear()  # Add this method if you want to reset the graph each step
-    graph_mgr.add_ground_stations(manager)
-    Satellite.extractor(graph_mgr, ts, skyfield_time)
-    all_satellites = graph_mgr.get_satellites()
+    # Clear graph and reload fresh for each time step
+    try:
+        graph_mgr.clear()
+        Satellite.extractor(graph_mgr, ts, skyfield_time)
+        all_satellites = graph_mgr.get_satellites()
 
-    # Update satellite positions for current time
-    for sat in all_satellites:
-        sat.update_position(ts, current_time)
+        # Update satellite positions for current time
+        for sat in all_satellites:
+            sat.update_position(ts, current_time)
 
-    graph_mgr.add_satellite_to_satellite_edges(ts, skyfield_time)
-    graph_mgr.add_ground_to_satellite_edges(ts, skyfield_time)
+        graph_mgr.add_satellite_to_satellite_edges(ts, skyfield_time)
+        graph_mgr.add_ground_to_satellite_edges(ts, skyfield_time)
 
-    graph_mgr.create_users()
-    G = graph_mgr.get_graph()
+    except Exception as e:
+        print(f"Error building graph for step {step}: {e}")
+        continue
 
     # Create a KML folder per step/time
     step_folder = kml.newfolder(name=f"Step {step} - {current_time.strftime('%Y-%m-%d %H:%M UTC')}")
@@ -68,123 +145,125 @@ for step in range(num_steps):
 
     # Add ground stations
     for gs in graph_mgr.get_ground_stations():
-        pnt = gs_folder.newpoint(
-            name=f"GS-{gs.name}",
-            coords=[(gs.longitude, gs.latitude, 0)]
+        coords = [(gs.longitude, gs.latitude, 0)]
+        create_point(
+            gs_folder, f"GS-{gs.name}", coords,
+            'http://maps.google.com/mapfiles/kml/shapes/communications.png',
+            simplekml.Color.green, 1.1, time_span
         )
-        pnt.altitudemode = simplekml.AltitudeMode.absolute
-        pnt.style.iconstyle.icon.href = 'http://maps.google.com/mapfiles/kml/shapes/communications.png'
-        pnt.style.iconstyle.color = simplekml.Color.green
-        pnt.style.iconstyle.scale = 1.1
-        pnt.timespan = time_span  # ✅ Apply time span
 
     # Add satellites
-    for gs in graph_mgr.get_ground_stations():
-        pnt = gs_folder.newpoint(
-            name=f"GS-{gs.name}",
-            coords=[(gs.longitude, gs.latitude, 0)]
-        )
-        pnt.altitudemode = simplekml.AltitudeMode.absolute
-        pnt.style.iconstyle.icon.href = 'http://maps.google.com/mapfiles/kml/shapes/communications.png'
-        pnt.style.iconstyle.color = simplekml.Color.green
-        pnt.style.iconstyle.scale = 1.1
-        pnt.timespan = time_span  # ✅ Apply time span
+    for sat in all_satellites:
+        try:
+            alt_km = sat.altitude()
+            if not math.isfinite(alt_km) or alt_km < 0:
+                print(f"Warning: Invalid altitude for satellite {sat.name}: {alt_km}")
+                continue
+
+            coords = [(sat.longitude, sat.latitude, alt_km * 1000)]
+            create_point(
+                sat_folder, f"SAT-{sat.name}", coords,
+                'http://maps.google.com/mapfiles/kml/paddle/wht-blank.png',
+                simplekml.Color.red, 1.1, time_span
+            )
+        except Exception as e:
+            print(f"Error processing satellite {sat.name}: {e}")
+            continue
 
     # Add users
     for user in graph_mgr.users:
-        user_pnt = users_folder.newpoint(
-            name=f"User {user.user_id}",
-            coords=[(user.longitude, user.latitude, 0)]
+        coords = [(user.longitude, user.latitude, 0)]
+        create_point(
+            users_folder, f"User {user.user_id}", coords,
+            'http://maps.google.com/mapfiles/kml/paddle/purple-stars.png',
+            simplekml.Color.purple, 1.2, time_span
         )
-        user_pnt.altitudemode = simplekml.AltitudeMode.absolute
-        user_pnt.style.iconstyle.icon.href = 'http://maps.google.com/mapfiles/kml/paddle/purple-stars.png'
-        user_pnt.style.iconstyle.scale = 1.2
-        user_pnt.timespan = time_span  # ✅ Apply time span
 
     # Add edges / links
+    edge_count = 0
     for u, v, data in G.edges(data=True):
-        node_u = G.nodes[u]
-        node_v = G.nodes[v]
+        try:
+            node_u = G.nodes[u]
+            node_v = G.nodes[v]
 
-        coord_u = graph_mgr.get_coords(node_u)
-        coord_v = graph_mgr.get_coords(node_v)
+            coord_u = graph_mgr.get_coords(node_u)
+            coord_v = graph_mgr.get_coords(node_v)
 
-        if not coord_u or not coord_v:
+            if not coord_u or not coord_v:
+                continue
+
+            coords = [coord_u, coord_v]
+            connection_type = data.get('connection_type', 'unknown')
+            distance = data.get('distance', 0)
+
+            if connection_type == 'satellite':
+                create_line(
+                    sat_links_folder, f"Sat Link {u} to {v} ({distance:.1f} km)",
+                    coords, simplekml.Color.red, 0.5, time_span
+                )
+            elif connection_type == 'ground_station':
+
+                create_line(
+                    gs_links_folder, f"Ground Link {u} to {v} ({distance:.1f} km)",
+                    coords, simplekml.Color.aqua, 0, time_span
+                )
+            elif any((isinstance(node, dict) and node.get('type') == 'user') for node in [node_u, node_v]):
+                create_line(
+                    gs_links_folder, f"User Link {u} to {v} ({distance:.1f} km)",
+                    coords, simplekml.Color.purple, 3, time_span
+                )
+            else:
+                create_line(
+                    gs_links_folder, f"Link {u} to {v} ({distance:.1f} km)",
+                    coords, simplekml.Color.gray, 1, time_span
+                )
+
+            edge_count += 1
+        except Exception as e:
+            print(f"Error processing edge {u}-{v}: {e}")
             continue
 
-        coords = [coord_u, coord_v]
+    print(f"  Added {edge_count} edges for step {step}")
 
-        connection_type = data.get('connection_type', 'unknown')
-        distance = data.get('distance', 0)
-
-        if connection_type == 'satellite':
-            line = sat_links_folder.newlinestring(
-                name=f"Sat Link {u} to {v} ({distance:.1f} km)",
-                coords=coords
-            )
-            line.style.linestyle.color = simplekml.Color.red
-            line.style.linestyle.width = 1
-        elif connection_type == 'ground_station':
-            line = gs_links_folder.newlinestring(
-                name=f"Ground Link {u} to {v} ({distance:.1f} km)",
-                coords=coords
-            )
-            line.style.linestyle.color = simplekml.Color.green
-            line.style.linestyle.width = 1
-        elif any((isinstance(node, dict) and node.get('type') == 'user') for node in [node_u, node_v]):
-            line = gs_links_folder.newlinestring(
-                name=f"User Link {u} to {v} ({distance:.1f} km)",
-                coords=coords
-            )
-            line.style.linestyle.color = simplekml.Color.purple
-            line.style.linestyle.width = 3
-        else:
-            # Other types of links (optional)
-            line = gs_links_folder.newlinestring(
-                name=f"Link {u} to {v} ({distance:.1f} km)",
-                coords=coords
-            )
-            line.style.linestyle.color = simplekml.Color.gray
-            line.style.linestyle.width = 1
-
-        line.altitudemode = simplekml.AltitudeMode.absolute
-        line.extrude = 0
-        line.tessellate = 1
-        line.timespan = time_span
-
+    # Handle shortest path
     if graph_mgr.users:
-        user1 = graph_mgr.users[0]
-        closest_gs = graph_mgr.find_closest_ground_station(user1)
+        try:
+            user1 = graph_mgr.users[0]
+            closest_gs = graph_mgr.find_closest_ground_station(user1)
 
-        if closest_gs is not None:
-            path, length = graph_mgr.find_shortest_path(source=user1, target=closest_gs)
-        else:
-            path = None
+            if closest_gs is not None:
+                path, length = graph_mgr.find_shortest_path(source=user1, target=closest_gs)
 
-        if path:
-            path_edges = set()
-            for i in range(len(path)-1):
-                path_edges.add((path[i], path[i+1]))
-                path_edges.add((path[i+1], path[i]))
+                if path and len(path) > 1:
+                    print(f"  Found shortest path with {len(path)} nodes, length: {length:.1f} km")
 
-            for (u, v) in path_edges:
-                #node_u = implement here get node same to node_v
-                node_v = graph_mgr.get_coords(v)
-                coords = [(node_u.longitude, node_u.latitude, node_u.altitude() * 1000),
-                          (node_v.longitude, node_v.latitude, node_v.altitude() * 1000)]
+                    # Create path segments (avoid duplicates)
+                    for i in range(len(path) - 1):
+                        u, v = path[i], path[i + 1]
 
-                line = shortest_path_folder.newlinestring(
-                    name=f"Path {u} -> {v}",
-                    coords=coords
-                )
-                line.style.linestyle.color = simplekml.Color.yellow  # ✅ Different color
-                line.style.linestyle.width = 3  # ✅ Thicker
-                line.altitudemode = simplekml.AltitudeMode.absolute
-                line.extrude = 0
-                line.tessellate = 1
-                line.timespan = time_span
+                        if u not in G.nodes or v not in G.nodes:
+                            continue
 
+                        node_u = G.nodes[u]
+                        node_v = G.nodes[v]
 
+                        coord_u = graph_mgr.get_coords(node_u)
+                        coord_v = graph_mgr.get_coords(node_v)
+
+                        if not coord_u or not coord_v:
+                            continue
+
+                        coords = [coord_u, coord_v]
+
+                        create_line(
+                            shortest_path_folder, f"Path Segment {i + 1}: {u} -> {v}",
+                            coords, simplekml.Color.blueviolet, 4, time_span
+                        )
+
+        except Exception as e:
+            print(f"Warning: Could not compute shortest path for step {step}: {e}")
+
+print("Simulation complete, saving final KML...")
 # Optional: Set a camera for the whole KML
 kml.document.camera = simplekml.Camera(
     longitude=0, latitude=0, altitude=50000 * 1000,
@@ -196,7 +275,7 @@ kml.document.camera = simplekml.Camera(
 output_dir = "output"
 os.makedirs(output_dir, exist_ok=True)
 timestamp = start_time.strftime("%Y%m%d_%H%M%S")
-kml_filename = os.path.join(output_dir, f"satellite_sim_{timestamp}.kml")
+kml_filename = os.path.join(output_dir, f"satellite_simulation.kml")
 kml.save(kml_filename)
 
 print(f"KML file saved as: {kml_filename}")

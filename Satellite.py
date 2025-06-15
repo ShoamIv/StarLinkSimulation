@@ -156,8 +156,10 @@ class Satellite:
         # Rough bounding box for continental USA
         min_lat, max_lat = 24.396308, 49.384358  # from Florida Keys to northern border
         min_lon, max_lon = -125.0, -66.93457  # from West Coast to East Coast
-
+        count = 0
         for i in range(0, len(lines), 3):
+            if count >= 50:
+                break
             if i + 2 >= len(lines):
                 continue
             name = lines[i].strip()
@@ -189,7 +191,7 @@ class Satellite:
                     )
                     satellites.append(satellite)
                     satellite_id += 1
-
+                    count +=1
             except Exception as e:
                 print(f"Skipping malformed TLE {name}: {e}")
 

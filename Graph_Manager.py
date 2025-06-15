@@ -1,11 +1,8 @@
 import networkx as nx
 from skyfield.api import wgs84
-from skyfield.api import Topos
 import numpy as np
-import math
 import random
-from typing import Dict, List, Tuple, Optional
-
+from typing import List
 from GroundStation import GroundStation
 from Satellite import Satellite
 from User import User
@@ -194,9 +191,6 @@ class GraphManager:
         ground_stations_or_users = self.get_ground_stations()
         ground_stations_or_users.extend(self.users)
 
-        for sat_obj in satellites:
-            sat_obj.update_position(ts, time.utc_datetime())
-
         for gs_obj in ground_stations_or_users:
             gs_node_key = None
             if hasattr(gs_obj, 'name'):
@@ -216,6 +210,7 @@ class GraphManager:
 
                 is_los, distance_km = self.satellite_to_groundstation_los(sat_obj.earth_satellite, gs_obj, time)
                 if is_los and not self.G.has_edge(gs_node_key, sat_node_name):
+                    print(gs_node_key, sat_node_name, distance_km)
                     self.G.add_edge(
                         gs_node_key,
                         sat_node_name,
@@ -252,7 +247,7 @@ class GraphManager:
                     pos2_eci = sat_earth2.at(time).position.km
                     distance_km = self.calculate_distance_3d(pos1_eci, pos2_eci)
 
-                    max_inter_sat_range = 3000.0
+                    max_inter_sat_range = 2000.0
                     if distance_km < max_inter_sat_range and not self.G.has_edge(sat1_node_name, sat2_node_name):
                         signal_strength = self.calculate_signal_strength(distance_km, 'satellite')
                         self.G.add_edge(
@@ -373,8 +368,7 @@ class GraphManager:
     def create_users(self):
         """Creates user nodes and adds them to the graph."""
 
-        # New York
-        user1 = User(1, 43.238949, 76.889709)
+        user1 = User(1,  47.751076,  -120.740135)
         self.G.add_node(
             user1,
             type="user",
@@ -386,7 +380,7 @@ class GraphManager:
         self.gs_nodes[str(user1.user_id)] = user1  # <-- Add to gs_nodes
 
         # Los Angeles
-        user2 = User(2, 47.105045, 51.924622)
+        user2 = User(2, 36.778259, -119.417931)
         self.G.add_node(
             user2,
             type="user",
@@ -408,12 +402,26 @@ class GraphManager:
                 if sat_obj:
                     return sat_obj.longitude, sat_obj.latitude, sat_obj.altitude() * 1000
         return None
-
+    """
     def clear(self):
         self.G.clear()  # Clears all nodes and edges
         self.users = []
         self.sat_nodes = {}
         self.gs_nodes = {}
+    """
 
+    def clear(self):
+        """Clear only satellites and their edges, preserving ground stations."""
+
+        # Get all satellite node names to remove
+        sat_node_names = list(self.sat_nodes.values())
+
+        # Remove satellite nodes (this also removes all edges connected to them)
+        for node_name in sat_node_names:
+            if node_name in self.G.nodes:
+                self.G.remove_node(node_name)
+
+        # Clear satellite-related data structures
+        self.sat_nodes = {}
 
 
