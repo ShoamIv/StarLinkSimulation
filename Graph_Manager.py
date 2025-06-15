@@ -42,6 +42,18 @@ class GraphManager:
                     ground_stations.append(node_data['obj'])
         return ground_stations
 
+    def get_coords(self, node):
+        if 'type' in node:
+            if node['type'] == 'ground_station':
+                return node['longitude'], node['latitude'], 0
+            elif node['type'] == 'user':
+                return node['longitude'], node['latitude'], 0
+            elif node['type'] == 'satellite':
+                sat_obj = node.get('obj', None)
+                if sat_obj:
+                    return sat_obj.longitude, sat_obj.latitude, sat_obj.altitude() * 1000
+        return None
+
     def add_ground_stations(self, ground_station_manager):
         """
         Add ground stations from a GroundStationManager instance to the graph.
@@ -261,31 +273,6 @@ class GraphManager:
                         print(
                             f"  Connected {sat1_node_name} to {sat2_node_name} (Inter-Sat LOS, dist: {distance_km:.0f} km)")
 
-    def geographic_distance(self, coords1, coords2):
-        """
-        Calculate the haversine distance between two points.
-
-        Args:
-            coords1, coords2: tuples (lon, lat, alt) - alt is ignored here.
-
-        Returns:
-            Distance in kilometers.
-        """
-        from math import radians, sin, cos, sqrt, atan2
-
-        lon1, lat1, _ = coords1
-        lon2, lat2, _ = coords2
-
-        R = 6371.0  # Earth radius in km
-
-        dlat = radians(lat2 - lat1)
-        dlon = radians(lon2 - lon1)
-
-        a = sin(dlat / 2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon / 2) ** 2
-        c = 2 * atan2(sqrt(a), sqrt(1 - a))
-
-        return R * c
-
     def get_node_latency_penalty(self, node):
         attr = self.G.nodes[node]  # Get node attributes
         node_type = attr.get('type')
@@ -340,25 +327,6 @@ class GraphManager:
 
         return closest_gs
 
-    def send_data_to_closest_gs(self, source, weight='weight'):
-        """
-        Send data from source to the closest ground station.
-
-        Args:
-            source: source node key in graph.
-            weight: edge attribute for shortest path calculation.
-
-        Returns:
-            Result dict from send_data, or None.
-        """
-        closest_gs = self.find_closest_ground_station(source)
-        if closest_gs is None:
-            print(f"No ground station reachable from source '{source}'")
-            return None
-
-        # Call your main send_data method with source and target
-        return self.send_data(source, closest_gs, weight=weight)
-
     def get_graph(self):
         """
         Return the NetworkX graph object.
@@ -368,7 +336,7 @@ class GraphManager:
     def create_users(self):
         """Creates user nodes and adds them to the graph."""
 
-        user1 = User(1,  47.751076,  -120.740135)
+        user1 = User(1, 47.751076, -120.740135)
         self.G.add_node(
             user1,
             type="user",
@@ -391,25 +359,6 @@ class GraphManager:
         self.users.append(user2)
         self.gs_nodes[str(user2.user_id)] = user2
 
-    def get_coords(self,node):
-        if 'type' in node:
-            if node['type'] == 'ground_station':
-                return node['longitude'], node['latitude'], 0
-            elif node['type'] == 'user':
-                return node['longitude'], node['latitude'], 0
-            elif node['type'] == 'satellite':
-                sat_obj = node.get('obj', None)
-                if sat_obj:
-                    return sat_obj.longitude, sat_obj.latitude, sat_obj.altitude() * 1000
-        return None
-    """
-    def clear(self):
-        self.G.clear()  # Clears all nodes and edges
-        self.users = []
-        self.sat_nodes = {}
-        self.gs_nodes = {}
-    """
-
     def clear(self):
         """Clear only satellites and their edges, preserving ground stations."""
 
@@ -423,5 +372,3 @@ class GraphManager:
 
         # Clear satellite-related data structures
         self.sat_nodes = {}
-
-
