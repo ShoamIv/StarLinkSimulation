@@ -7,5 +7,6 @@ class User:
         self.latitude = latitude
         self.longitude = longitude
 
+
     def __str__(self):
         return f'{self.user_id}, {self.latitude}, {self.longitude}'

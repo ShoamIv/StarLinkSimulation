@@ -1,4 +1,5 @@
 import networkx as nx
+from geopy.distance import geodesic
 from skyfield.api import wgs84
 import numpy as np
 import random
@@ -44,12 +45,13 @@ class GraphManager:
 
     def get_coords(self, node):
         if 'type' in node:
-            if node['type'] == 'ground_station':
-                return node['longitude'], node['latitude'], 0
-            elif node['type'] == 'user':
-                return node['longitude'], node['latitude'], 0
+            if node['type'] in ['ground_station', 'user']:
+                lon = node.get('longitude')
+                lat = node.get('latitude')
+                if lon is not None and lat is not None:
+                    return lon, lat, 0
             elif node['type'] == 'satellite':
-                sat_obj = node.get('obj', None)
+                sat_obj = node.get('obj')
                 if sat_obj:
                     return sat_obj.longitude, sat_obj.latitude, sat_obj.altitude() * 1000
         return None
@@ -150,25 +152,6 @@ class GraphManager:
             print(f"Error in satellite_to_satellite_los: {e}")
             return False
 
-    def calculate_signal_strength(self, distance_km, connection_type='satellite'):
-        """
-        Calculate signal strength based on distance (simple model).
-        Returns a value between 0 and 1 (1 = strongest signal).
-        """
-        if connection_type == 'satellite':
-            # Satellite-to-satellite: good up to ~2000km
-            max_distance = 2000.0
-        else:
-            # Satellite-to-ground: good up to ~2500km
-            max_distance = 2500.0
-
-        # Simple inverse relationship
-        if distance_km > max_distance:
-            return 0.1  # Very weak signal
-
-        strength = 1.0 - (distance_km / max_distance) * 0.9
-        return max(0.1, strength)
-
     def add_orbit_edge(self, sat1, sat2, time):
         """Adds an edge between two satellites in the same orbit."""
         # Get the correct node names from the satellite IDs
@@ -189,9 +172,8 @@ class GraphManager:
 
         # Add edge to the graph using the correct node names
         self.G.add_edge(
-            sat1_node,  # Use node name, not satellite object
-            sat2_node,  # Use node name, not satellite object
-            weight=sat2.capacity_level,
+            sat1_node,
+            sat2_node,
             distance=distance,
             connection_type='satellite'
         )
@@ -226,7 +208,6 @@ class GraphManager:
                     self.G.add_edge(
                         gs_node_key,
                         sat_node_name,
-                        weight=distance_km,
                         distance=distance_km,
                         connection_type='ground_station'
                     )
@@ -261,13 +242,10 @@ class GraphManager:
 
                     max_inter_sat_range = 2000.0
                     if distance_km < max_inter_sat_range and not self.G.has_edge(sat1_node_name, sat2_node_name):
-                        signal_strength = self.calculate_signal_strength(distance_km, 'satellite')
                         self.G.add_edge(
                             sat1_node_name,
                             sat2_node_name,
-                            weight=distance_km,
                             distance=distance_km,
-                            signal_strength=signal_strength,
                             connection_type='satellite'
                         )
                         print(
@@ -291,16 +269,13 @@ class GraphManager:
         return 0
 
     def weight_with_node_penalty(self, u, v, edge_attr):
-        edge_weight = edge_attr.get('weight', 1)
+        distance_km = edge_attr.get('distance', 1)
+        distance_latency_ms = (distance_km / 300_000) * 1000  # km / (km/s) → s → ms
 
-        # Skip penalty for user nodes
         node_u_attr = self.G.nodes[u]
-        if node_u_attr.get('type') == 'user':
-            node_penalty = 0
-        else:
-            node_penalty = self.get_node_latency_penalty(u)
+        node_penalty = 0 if node_u_attr.get('type') == 'user' else self.get_node_latency_penalty(u)
 
-        return edge_weight + node_penalty
+        return distance_latency_ms + node_penalty  # total latency in ms
 
     def find_shortest_path(self, source, target):
         try:
@@ -312,20 +287,46 @@ class GraphManager:
             return None, None
 
     def find_closest_ground_station(self, source):
-        ground_stations = [node for node, attr in self.G.nodes(data=True) if attr.get('type') == 'ground_station']
-        min_distance = float('inf')
+        source_attr = self.G.nodes[source]
+        user_lat = source_attr.get('latitude')
+        user_lon = source_attr.get('longitude')
+
+        if user_lat is None or user_lon is None:
+            raise ValueError(f"User node {source} has no latitude/longitude info")
+
+        ground_stations = [
+            node for node, attr in self.G.nodes(data=True)
+            if attr.get('type') == 'ground_station'
+        ]
+
         closest_gs = None
+        min_penalty_distance = float('inf')
+        best_path = None  # Store the best path found
 
         for gs in ground_stations:
-            try:
-                dist = nx.shortest_path_length(self.G, source=source, target=gs, weight=self.weight_with_node_penalty)
-                if dist < min_distance:
-                    min_distance = dist
-                    closest_gs = gs
-            except nx.NetworkXNoPath:
+            gs_attr = self.G.nodes[gs]
+            gs_lat = gs_attr.get('latitude')
+            gs_lon = gs_attr.get('longitude')
+
+            if gs_lat is None or gs_lon is None:
                 continue
 
-        return closest_gs
+            # Step 1: Check physical distance
+            distance_km = geodesic((user_lat, user_lon), (gs_lat, gs_lon)).kilometers
+
+            if distance_km <= 1000:
+                # Step 2: Use find_shortest_path to get both path and distance
+                path, dist_with_penalty = self.find_shortest_path(source, gs)
+
+                if dist_with_penalty is not None and dist_with_penalty < min_penalty_distance:
+                    closest_gs = gs
+                    min_penalty_distance = dist_with_penalty
+                    best_path = path  # Store the corresponding path
+
+        if closest_gs:
+            return best_path, min_penalty_distance  # Return both path and length
+        else:
+            return None, None  # No GS within 1000 km reachable by path
 
     def get_graph(self):
         """

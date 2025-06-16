@@ -229,36 +229,33 @@ for step in range(num_steps):
     if graph_mgr.users:
         try:
             user1 = graph_mgr.users[0]
-            closest_gs = graph_mgr.find_closest_ground_station(user1)
+            path, weight = graph_mgr.find_closest_ground_station(user1)
 
-            if closest_gs is not None:
-                path, length = graph_mgr.find_shortest_path(source=user1, target=closest_gs)
+            if path is not None and len(path) > 1:
+                print(f"  Found shortest path with {len(path)} nodes, Weighted: {weight:.1f} latency")
 
-                if path and len(path) > 1:
-                    print(f"  Found shortest path with {len(path)} nodes, length: {length:.1f} km")
+                # Create path segments (avoid duplicates)
+                for i in range(len(path) - 1):
+                    u, v = path[i], path[i + 1]
 
-                    # Create path segments (avoid duplicates)
-                    for i in range(len(path) - 1):
-                        u, v = path[i], path[i + 1]
+                    if u not in G.nodes or v not in G.nodes:
+                        continue
 
-                        if u not in G.nodes or v not in G.nodes:
-                            continue
+                    node_u = G.nodes[u]
+                    node_v = G.nodes[v]
 
-                        node_u = G.nodes[u]
-                        node_v = G.nodes[v]
+                    coord_u = graph_mgr.get_coords(node_u)
+                    coord_v = graph_mgr.get_coords(node_v)
 
-                        coord_u = graph_mgr.get_coords(node_u)
-                        coord_v = graph_mgr.get_coords(node_v)
+                    if not coord_u or not coord_v:
+                        continue
 
-                        if not coord_u or not coord_v:
-                            continue
+                    coords = [coord_u, coord_v]
 
-                        coords = [coord_u, coord_v]
-
-                        create_line(
-                            shortest_path_folder, f"Path Segment {i + 1}: {u} -> {v}",
-                            coords, simplekml.Color.blueviolet, 4, time_span
-                        )
+                    create_line(
+                        shortest_path_folder, f"Path Segment {i + 1}: {u} -> {v}",
+                        coords, simplekml.Color.blueviolet, 4, time_span
+                    )
 
         except Exception as e:
             print(f"Warning: Could not compute shortest path for step {step}: {e}")
