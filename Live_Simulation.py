@@ -111,40 +111,37 @@ class LiveKMLGenerator:
         if self.graph_mgr.users:
             try:
                 user1 = self.graph_mgr.users[0]
-                closest_gs = self.graph_mgr.find_closest_ground_station(user1)
+                path, length = self.graph_mgr.find_closest_ground_station(user1)  # Now returns (path, length)
 
-                if closest_gs is not None:
-                    path, length = self.graph_mgr.find_shortest_path(source=user1, target=closest_gs)
+                if path is not None and len(path) > 1:
+                    print(f"  Found shortest path with {len(path)} nodes, length: {length:.1f} km")
 
-                    if path and len(path) > 1:
-                        print(f"  Found shortest path with {len(path)} nodes, length: {length:.1f} km")
+                    # Create path segments (avoid duplicates)
+                    for i in range(len(path) - 1):
+                        u, v = path[i], path[i + 1]
 
-                        # Create path segments (avoid duplicates)
-                        for i in range(len(path) - 1):
-                            u, v = path[i], path[i + 1]
+                        if u not in G.nodes or v not in G.nodes:
+                            continue
 
-                            if u not in G.nodes or v not in G.nodes:
-                                continue
+                        node_u = G.nodes[u]
+                        node_v = G.nodes[v]
 
-                            node_u = G.nodes[u]
-                            node_v = G.nodes[v]
+                        coord_u = self.graph_mgr.get_coords(node_u)
+                        coord_v = self.graph_mgr.get_coords(node_v)
 
-                            coord_u = self.graph_mgr.get_coords(node_u)
-                            coord_v = self.graph_mgr.get_coords(node_v)
+                        if not coord_u or not coord_v:
+                            continue
 
-                            if not coord_u or not coord_v:
-                                continue
+                        coords = [coord_u, coord_v]
 
-                            coords = [coord_u, coord_v]
-
-                            # Create path segment line
-                            line = paths_folder.newlinestring(
-                                name=f"Path Segment {i + 1}: {u} -> {v}",
-                                coords=coords
-                            )
-                            line.style.linestyle.color = simplekml.Color.blueviolet
-                            line.style.linestyle.width = 4
-                            line.altitudemode = simplekml.AltitudeMode.absolute
+                        # Create path segment line
+                        line = paths_folder.newlinestring(
+                            name=f"Path Segment {i + 1}: {u} -> {v}",
+                            coords=coords
+                        )
+                        line.style.linestyle.color = simplekml.Color.blueviolet
+                        line.style.linestyle.width = 4
+                        line.altitudemode = simplekml.AltitudeMode.absolute
 
             except Exception as e:
                 print(f"Warning: Could not compute shortest path: {e}")

@@ -163,7 +163,7 @@ for step in range(num_steps):
             coords = [(sat.longitude, sat.latitude, alt_km * 1000)]
             create_point(
                 sat_folder, f"SAT-{sat.name}", coords,
-                'http://maps.google.com/mapfiles/kml/paddle/wht-blank.png',
+                'https://maps.google.com/mapfiles/kml/paddle/wht-blank.png',
                 simplekml.Color.red, 1.1, time_span
             )
         except Exception as e:
@@ -261,12 +261,6 @@ for step in range(num_steps):
             print(f"Warning: Could not compute shortest path for step {step}: {e}")
 
 print("Simulation complete, saving final KML...")
-# Optional: Set a camera for the whole KML
-kml.document.camera = simplekml.Camera(
-    longitude=0, latitude=0, altitude=50000 * 1000,
-    heading=0, tilt=90, roll=0,
-    altitudemode=simplekml.AltitudeMode.absolute
-)
 
 # Save KML file
 output_dir = "output"
