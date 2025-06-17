@@ -25,18 +25,31 @@ Exports all visualizations to a time-aware .kml file for playback in Google Eart
 ## 📁 Folder Structure ##
 
 StarLinkSimulator/
+
 │
+
 ├── Graph_Manager.py           # Manages dynamic graph construction and pathfinding
+
 ├── GroundStation.py           # Ground station data and loader
+
 ├── Satellite.py               # Satellite object and TLE-based positioning
+
 ├── User.py                    # User representation
+
 ├── simulate.py                # Main KML simulation generator
+
 ├── Live_Simulation.py         # (Optional) Real-time or UI simulation
+
 ├── resources/
+
 │   └── ground_stations_global.txt   # Earth ground station locations
+
 ├── output/
+
 │   └── satellite_simulation.kml     # Final KML visualization output
+
 ├── .venv/                     # Python virtual environment (optional)
+
 ├── .idea/                     # IDE metadata
 
  ## Features ##
