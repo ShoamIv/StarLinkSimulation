@@ -80,7 +80,7 @@ You can open this .kml file in Google Earth Pro to view an animated timeline.
 
 #### simulation.py ####
 
-#### Purpose ####:
+#### Purpose:
 
 Runs a predefined simulation of the satellite network over a time range and outputs a sequence of KML files — one for each time step — into a folder. This is ideal for generating a video-like visualization of satellite movement and dynamic routing.
 
@@ -93,7 +93,7 @@ When you want to simulate and review the satellite constellation behavior over t
 
 #### live_simulation.py ####
 
-#### Purpose ####:
+#### Purpose:
 
 Launches a live web server using Flask that continuously generates real-time KML data based on the current time. It creates a master_live_satellites.kml file with a NetworkLink that automatically refreshes in Google Earth every 30 seconds.
 
