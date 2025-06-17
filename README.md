@@ -6,7 +6,7 @@ Simulate and visualize dynamic Starlink satellite connectivity with shortest pat
 
 This project simulates the real-time motion of Starlink satellites and models a dynamic communication graph that connects:
 
-#### Users (on Earth)
+#### Users
 
 #### Ground stations
 
