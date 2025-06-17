@@ -123,14 +123,15 @@ Open output/master_live_satellites.kml in Google Earth Pro.
 
 3. Run the Simulation
 
-python simulate.py/master_live_satellites.py
+    python simulate.py/master_live_satellites.py
 
 4. Output saved to: output/file_name.kml
 
 5. View in Google Earth
-Open file_name.kml in Google Earth Pro.
 
-Use the timeline slider to play through time steps or inititate the live simulation
+    Open file_name.kml in Google Earth Pro.
+
+    Use the timeline slider to play through time steps or inititate the live simulation
 
 
 
