@@ -117,9 +117,9 @@ Open output/master_live_satellites.kml in Google Earth Pro.
 
 1. Clone the repository
 
-2. Install Dependencies
+2. Install Dependencies:
 
-pip install skyfield simplekml networkx
+     pip install skyfield simplekml networkx
 
 3. Run the Simulation
 
