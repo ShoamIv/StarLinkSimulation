@@ -97,7 +97,7 @@ When you want to simulate and review the satellite constellation behavior over t
 
 Launches a live web server using Flask that continuously generates real-time KML data based on the current time. It creates a master_live_satellites.kml file with a NetworkLink that automatically refreshes in Google Earth every 30 seconds.
 
-### How it Works ###:
+### How it Works:
 
 Google Earth requests live_satellites.kml every 30 seconds.
 
@@ -105,7 +105,7 @@ The server dynamically updates satellite/user positions and links.
 
 It also calculates the shortest path between a user and their closest ground station.
 
-### Steps to Use ###:
+### Steps to Use:
 
 Run the script:
 
