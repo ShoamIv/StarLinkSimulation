@@ -151,6 +151,7 @@ class LiveKMLGenerator:
         return kml.kml()
 
     def add_shortest_path(self, G, paths_folder):
+
         if self.graph_mgr.users:
             try:
                 user1 = self.graph_mgr.users[0]
@@ -165,9 +166,34 @@ class LiveKMLGenerator:
                         coord_u = self.graph_mgr.get_coords(G.nodes[u])
                         coord_v = self.graph_mgr.get_coords(G.nodes[v])
                         create_line(paths_folder, f"Path Segment {i + 1}: {u} -> {v}",
-                                    [coord_u, coord_v], simplekml.Color.blueviolet, 4)
+                                    [coord_u, coord_v], simplekml.Color.blueviolet, 0)
             except Exception as e:
                 print(f"Warning: Could not compute shortest path: {e}")
+
+            # handle shortest path from user to user comm
+            if len(self.graph_mgr.users) >= 2:
+                sender = self.graph_mgr.users[0]
+                receiver = self.graph_mgr.users[1]
+
+                print(f"Simulating message from User {sender.user_id} to User {receiver.user_id}...")
+
+                path, weight = self.graph_mgr.find_shortest_path(sender, receiver)
+                if path and len(path) > 1:
+                    print(f"  Message path found with {len(path)} nodes, Total cost: {weight:.1f} latency")
+
+                    # Visualize message path
+                    for i in range(len(path) - 1):
+                        u, v = path[i], path[i + 1]
+                        if u not in G.nodes or v not in G.nodes:
+                            continue
+                        coord_u = self.graph_mgr.get_coords(G.nodes[u])
+                        coord_v = self.graph_mgr.get_coords(G.nodes[v])
+                        if not coord_u or not coord_v:
+                            continue
+                        create_line(paths_folder, f"Path Segment {i + 1}: {u} -> {v}",
+                                    [coord_u, coord_v], simplekml.Color.orange, 4)
+                else:
+                    print("  No message path found between users.")
 
 
 # === Flask Server ===
