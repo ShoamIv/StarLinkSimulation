@@ -314,7 +314,7 @@ class GraphManager:
             print(f"No path between {source} and {target}")
             return None, None
 
-    def find_closest_ground_station(self, source):
+    def find_shortest_path_to_gs(self, source):
         source_attr = self.G.nodes[source]
         user_lat = source_attr.get('latitude')
         user_lon = source_attr.get('longitude')

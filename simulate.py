@@ -232,7 +232,7 @@ for step in range(num_steps):
     if graph_mgr.users:
         try:
             user1 = graph_mgr.users[0]
-            path, weight = graph_mgr.find_closest_ground_station(user1)
+            path, weight = graph_mgr.find_shortest_path_to_gs(user1)
 
             if path is not None and len(path) > 1:
                 print(f"  Found shortest path with {len(path)} nodes, Weighted: {weight:.1f} latency")
