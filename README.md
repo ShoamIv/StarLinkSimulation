@@ -43,7 +43,7 @@ StarLinkSimulator/
 ├── resources/
 
 │   └── ground_stations_global.txt   # Earth ground station locations
-
+    └──requirements.txt              #requirmenets txt for installation
 ├── output/
 
 │   └── satellite_simulation.kml     # Final KML visualization output
