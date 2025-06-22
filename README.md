@@ -43,7 +43,7 @@ StarLinkSimulator/
 ├── resources/
 
 │   └── ground_stations_global.txt   # Earth ground station locations
-
+    └──requirements.txt              #requirmenets txt for installation
 ├── output/
 
 │   └── satellite_simulation.kml     # Final KML visualization output
@@ -126,25 +126,63 @@ python live_simulation.py
 
 Open output/master_live_satellites.kml in Google Earth Pro.
 
-## Requirements ##
+## Usage ##
 
 1. Clone the repository
 
-2. Install Dependencies:
-
-     pip install skyfield simplekml networkx
-
-3. Run the Simulation
+2. Run the Simulation
 
     python simulate.py/master_live_satellites.py
 
-4. Output saved to: output/file_name.kml
+3. Output saved to: output/file_name.kml
 
-5. View in Google Earth
+4. View in Google Earth
 
     Open file_name.kml in Google Earth Pro.
 
     Use the timeline slider to play through time steps or inititate the live simulation
 
+## Requirements ##
+ 
+To run this project, you'll need Python 3.8 or newer and the following Python packages:
+
+flask
+
+simplekml
+
+skyfield
+
+geopy
+
+networkx
+
+numpy
+
+### Installation ###
+
+Clone the repository (if you haven't already):
+
+Create a virtual environment (optional but recommended):
+
+python -m venv venv
+source venv/bin/activate     # On Windows: venv\Scripts\activate
+
+Create a requirements.txt file (or use the one provided at resources folder):
+
+flask
+
+skyfield
+
+simplekml
+
+geopy
+
+networkx
+
+numpy
+
+Install dependencies:
+
+pip install -r requirements.txt
 
 
