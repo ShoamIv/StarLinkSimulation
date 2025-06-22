@@ -314,6 +314,20 @@ class GraphManager:
             print(f"No path between {source} and {target}")
             return None, None
 
+    def comm_between_users(self, source_user, target_user):
+        source_id = f"user_{source_user.user_id}"
+        target_id = f"user_{target_user.user_id}"
+        if source_id in self.G and target_id in self.G:
+            try:
+                path = nx.shortest_path(self.G, source=source_id, target=target_id,
+                                        weight=self.weight_with_node_penalty)
+                length = nx.shortest_path_length(self.G, source=source_id, target=target_id,
+                                                 weight=self.weight_with_node_penalty)
+                return path, length
+            except nx.NetworkXNoPath:
+                return None, float('inf')
+        return None, float('inf')
+
     def find_shortest_path_to_gs(self, source):
         source_attr = self.G.nodes[source]
         user_lat = source_attr.get('latitude')
@@ -362,31 +376,17 @@ class GraphManager:
         """
         return self.G
 
-    def create_users(self):
+    def add_users(self, user):
         """Creates user nodes and adds them to the graph."""
-
-        user1 = User(1, 47.751076, -120.740135)
         self.G.add_node(
-            user1,
+            user,
             type="user",
-            latitude=user1.latitude,
-            longitude=user1.longitude,
+            latitude=user.latitude,
+            longitude=user.longitude,
             altitude=0.0,
         )
-        self.users.append(user1)
-        self.gs_nodes[str(user1.user_id)] = user1  # <-- Add to gs_nodes
-
-        # Los Angeles
-        user2 = User(2, 36.778259, -119.417931)
-        self.G.add_node(
-            user2,
-            type="user",
-            latitude=user2.latitude,
-            longitude=user2.longitude,
-            altitude=0.0,
-        )
-        self.users.append(user2)
-        self.gs_nodes[str(user2.user_id)] = user2
+        self.users.append(user)
+        self.gs_nodes[str(user.user_id)] = user  # <-- Add to gs_nodes
 
     def clear(self):
         """Clear only satellites and their edges, preserving ground stations."""

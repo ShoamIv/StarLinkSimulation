@@ -8,6 +8,8 @@ import os
 from pathlib import Path
 import math
 
+from User import User
+
 RESOURCES_DIR = Path(__file__).parent / "resources"
 
 
@@ -86,12 +88,18 @@ manager = GroundStation.GroundStationManager()
 file_path = RESOURCES_DIR / "ground_stations_global.txt"
 manager.load_from_file(file_path)
 graph_mgr.add_ground_stations(manager)
-graph_mgr.create_users()
+
+user1 = User(1, 47.751076, -120.740135)
+user2 = User(2, 36.778259, -119.417931)
+
+graph_mgr.add_users(user1)
+graph_mgr.add_users(user2)
+
 G = graph_mgr.get_graph()
 
 # Number of steps & step interval in minutes
-num_steps = 3  # Start small for testing
-step_minutes = 6
+num_steps = 5  # Start small for testing
+step_minutes = 4
 
 # Create KML container
 kml = simplekml.Kml()
@@ -133,7 +141,6 @@ for step in range(num_steps):
         continue
 
     for sat in all_satellites:
-
         print(f"{sat.name} connect to: {sat.connected_satellites}")
     # Create a KML folder per step/time
     step_folder = kml.newfolder(name=f"Step {step} - {current_time.strftime('%Y-%m-%d %H:%M UTC')}")
@@ -228,9 +235,12 @@ for step in range(num_steps):
 
     print(f"  Added {edge_count} edges for step {step}")
 
-    # Handle shortest path
+    # Handle shortest path from user to neighbor ground station.
+    # change width parameter to visualize it in kml file.
+
     if graph_mgr.users:
         try:
+
             user1 = graph_mgr.users[0]
             path, weight = graph_mgr.find_shortest_path_to_gs(user1)
 
@@ -257,11 +267,42 @@ for step in range(num_steps):
 
                     create_line(
                         shortest_path_folder, f"Path Segment {i + 1}: {u} -> {v}",
-                        coords, simplekml.Color.blueviolet, 4, time_span
+                        coords, simplekml.Color.blueviolet, 0, time_span
                     )
 
         except Exception as e:
             print(f"Warning: Could not compute shortest path for step {step}: {e}")
+
+        # handle shortest path from user to user comm
+        if len(graph_mgr.users) >= 2:
+            sender = graph_mgr.users[0]
+            receiver = graph_mgr.users[1]
+
+            print(f"Simulating message from User {sender.user_id} to User {receiver.user_id}...")
+
+            path, weight = graph_mgr.find_shortest_path(sender, receiver)
+            if path and len(path) > 1:
+                print(f"  Message path found with {len(path)} nodes, Total cost: {weight:.1f} latency")
+
+                # Visualize message path
+                for i in range(len(path) - 1):
+                    u, v = path[i], path[i + 1]
+                    if u not in G.nodes or v not in G.nodes:
+                        continue
+                    coord_u = graph_mgr.get_coords(G.nodes[u])
+                    coord_v = graph_mgr.get_coords(G.nodes[v])
+                    if not coord_u or not coord_v:
+                        continue
+                    create_line(
+                        shortest_path_folder,
+                        f"Message Segment {i + 1}: {u} -> {v}",
+                        [coord_u, coord_v],
+                        simplekml.Color.orange,
+                        4,
+                        time_span
+                    )
+            else:
+                print("  No message path found between users.")
 
 print("Simulation complete, saving final KML...")
 

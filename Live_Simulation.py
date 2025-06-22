@@ -10,6 +10,7 @@ import simplekml
 import GroundStation
 import Satellite
 import Graph_Manager
+from User import User
 
 RESOURCES_DIR = Path(__file__).parent / "resources"
 output_dir = "output"
@@ -80,7 +81,10 @@ class LiveKMLGenerator:
         file_path = RESOURCES_DIR / "ground_stations_global.txt"
         self.manager.load_from_file(file_path)
         self.graph_mgr.add_ground_stations(self.manager)
-        self.graph_mgr.create_users()
+        user1 = User(1, 47.751076, -120.740135)
+        user2 = User(2, 36.778259, -119.417931)
+        self.graph_mgr.add_users(user1)
+        self.graph_mgr.add_users(user2)
 
     def generate_current_kml(self):
         current_time = datetime.utcnow().replace(tzinfo=utc)
@@ -153,7 +157,7 @@ class LiveKMLGenerator:
                 path, length = self.graph_mgr.find_shortest_path_to_gs(user1)
 
                 if path and len(path) > 1:
-                    print(f"  Found shortest path with {len(path)} nodes, weighted: {length:.1f} km")
+                    print(f"  Found shortest path with {len(path)} nodes, weighted: {length:.1f}")
                     for i in range(len(path) - 1):
                         u, v = path[i], path[i + 1]
                         if u not in G.nodes or v not in G.nodes:
