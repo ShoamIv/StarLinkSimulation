@@ -166,10 +166,6 @@ Clone the repository (if you haven't already):
 
 Create a virtual environment (optional but recommended):
 
-python -m venv venv
-
-source venv/bin/activate     # On Windows: venv\Scripts\activate
-
 Create a requirements.txt file (or use the one provided at resources folder):
 
 flask
