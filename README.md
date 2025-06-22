@@ -130,13 +130,15 @@ Open output/master_live_satellites.kml in Google Earth Pro.
 
 1. Clone the repository
 
-2. Run the Simulation
+2. Run the preferred Simulation
 
-    python simulate.py/master_live_satellites.py
+    python simulate.py
 
-3. Output saved to: output/file_name.kml
+    master_live_satellites.py
 
-4. View in Google Earth
+4. Output saved to: output/file_name.kml
+
+5. View in Google Earth
 
     Open file_name.kml in Google Earth Pro.
 
