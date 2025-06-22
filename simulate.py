@@ -235,44 +235,7 @@ for step in range(num_steps):
 
     print(f"  Added {edge_count} edges for step {step}")
 
-    # Handle shortest path from user to neighbor ground station.
-    # change width parameter to visualize it in kml file.
-
     if graph_mgr.users:
-        try:
-
-            user1 = graph_mgr.users[0]
-            path, weight = graph_mgr.find_shortest_path_to_gs(user1)
-
-            if path is not None and len(path) > 1:
-                print(f"  Found shortest path with {len(path)} nodes, Weighted: {weight:.1f} latency")
-
-                # Create path segments (avoid duplicates)
-                for i in range(len(path) - 1):
-                    u, v = path[i], path[i + 1]
-
-                    if u not in G.nodes or v not in G.nodes:
-                        continue
-
-                    node_u = G.nodes[u]
-                    node_v = G.nodes[v]
-
-                    coord_u = graph_mgr.get_coords(node_u)
-                    coord_v = graph_mgr.get_coords(node_v)
-
-                    if not coord_u or not coord_v:
-                        continue
-
-                    coords = [coord_u, coord_v]
-
-                    create_line(
-                        shortest_path_folder, f"Path Segment {i + 1}: {u} -> {v}",
-                        coords, simplekml.Color.blueviolet, 0, time_span
-                    )
-
-        except Exception as e:
-            print(f"Warning: Could not compute shortest path for step {step}: {e}")
-
         # handle shortest path from user to user comm
         if len(graph_mgr.users) >= 2:
             sender = graph_mgr.users[0]

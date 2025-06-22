@@ -314,20 +314,6 @@ class GraphManager:
             print(f"No path between {source} and {target}")
             return None, None
 
-    def comm_between_users(self, source_user, target_user):
-        source_id = f"user_{source_user.user_id}"
-        target_id = f"user_{target_user.user_id}"
-        if source_id in self.G and target_id in self.G:
-            try:
-                path = nx.shortest_path(self.G, source=source_id, target=target_id,
-                                        weight=self.weight_with_node_penalty)
-                length = nx.shortest_path_length(self.G, source=source_id, target=target_id,
-                                                 weight=self.weight_with_node_penalty)
-                return path, length
-            except nx.NetworkXNoPath:
-                return None, float('inf')
-        return None, float('inf')
-
     def find_shortest_path_to_gs(self, source):
         source_attr = self.G.nodes[source]
         user_lat = source_attr.get('latitude')

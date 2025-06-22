@@ -66,12 +66,6 @@ class Satellite:
         else:  # 1500 or more
             return 3
 
-
-    def reset_connections(self):
-        """Call this before each new simulation step to clear old connections."""
-        self.connected_satellites.clear()
-        self.connected_ground_stations.clear()
-
     @staticmethod
     def download_tle_data(url: str) -> List[str]:
         """
@@ -162,7 +156,7 @@ class Satellite:
                     )
                     satellites.append(satellite)
                     satellite_id += 1
-                    count +=1
+                    count += 1
             except Exception as e:
                 print(f"Skipping malformed TLE {name}: {e}")
 
