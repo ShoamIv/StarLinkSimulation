@@ -18,7 +18,7 @@ Calculates satellite positions using Skyfield
 
 Dynamically rebuilds the network graph at each time step
 
-Identifies the shortest communication path from a user to the nearest ground station via satellites
+Identifies the shortest communication path from a user to user via satellites and ground stations.
 
 Exports all visualizations to a time-aware .kml file for playback in Google Earth
 
