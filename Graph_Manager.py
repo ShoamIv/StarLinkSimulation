@@ -177,6 +177,8 @@ class GraphManager:
             distance=distance,
             connection_type='satellite'
         )
+        sat1.connected_satellites.add(sat2.satellite_id)
+        sat2.connected_satellites.add(sat1.satellite_id)
 
     def add_ground_to_satellite_edges(self, ts, time):
         print("Checking Ground Station/User to Satellite LOS...")
@@ -203,53 +205,79 @@ class GraphManager:
                     continue
 
                 is_los, distance_km = self.satellite_to_groundstation_los(sat_obj.earth_satellite, gs_obj, time)
+
                 if is_los and not self.G.has_edge(gs_node_key, sat_node_name):
-                    print(gs_node_key, sat_node_name, distance_km)
-                    self.G.add_edge(
-                        gs_node_key,
-                        sat_node_name,
-                        distance=distance_km,
-                        connection_type='ground_station'
-                    )
+                    if distance_km < 1000:
+                        print(gs_node_key, sat_node_name, distance_km)
+                        self.G.add_edge(
+                            gs_node_key,
+                            sat_node_name,
+                            distance=distance_km,
+                            connection_type='ground_station'
+                        )
 
     def add_satellite_to_satellite_edges(self, ts, time):
-        print("Checking Inter-Satellite LOS...")
-        self.G.remove_edges_from([
-            (u, v) for u, v, d in self.G.edges(data=True) if d.get("connection_type") == "satellite"
-        ])
-        satellites = self.get_satellites()
-        num_satellites = len(satellites)
+        print("Adding cross-plane satellite links (laser communication)...")
 
-        for i in range(num_satellites):
-            sat1_obj = satellites[i]
-            sat1_node_name = self.sat_nodes.get(sat1_obj.satellite_id)
-            if sat1_node_name is None or sat1_node_name not in self.G.nodes:
+        satellites = self.get_satellites()
+        sat_by_id = {sat.satellite_id: sat for sat in satellites}
+        MAX_INTER_SAT_RANGE = 2000.0  # km
+
+        for sat in satellites:
+            if len(sat.connected_satellites) >= sat.MAX_SATELLITE_CONNECTIONS:
                 continue
 
-            for j in range(i + 1, num_satellites):
-                sat2_obj = satellites[j]
-                sat2_node_name = self.sat_nodes.get(sat2_obj.satellite_id)
-                if sat2_node_name is None or sat2_node_name not in self.G.nodes:
+            sat_node = self.sat_nodes.get(sat.satellite_id)
+            if sat_node is None or sat_node not in self.G.nodes:
+                continue
+
+            # Candidates: satellites from different orbital planes
+            candidates = [
+                other for other in satellites
+                if other.orbit_id != sat.orbit_id
+                   and other.satellite_id != sat.satellite_id
+                   and len(other.connected_satellites) < other.MAX_SATELLITE_CONNECTIONS
+                   and self.sat_nodes.get(other.satellite_id) in self.G.nodes
+                   and not self.G.has_edge(sat_node, self.sat_nodes[other.satellite_id])
+            ]
+
+            # Sort candidates by distance
+            candidates_sorted = sorted(
+                candidates,
+                key=lambda other: self.calculate_distance_3d(
+                    sat.earth_satellite.at(time).position.km,
+                    other.earth_satellite.at(time).position.km
+                )
+            )
+
+            for other in candidates_sorted:
+                if len(sat.connected_satellites) >= sat.MAX_SATELLITE_CONNECTIONS:
+                    break
+                if len(other.connected_satellites) >= other.MAX_SATELLITE_CONNECTIONS:
                     continue
 
-                sat_earth1 = sat1_obj.earth_satellite
-                sat_earth2 = sat2_obj.earth_satellite
+                other_node = self.sat_nodes[other.satellite_id]
+                distance_km = self.calculate_distance_3d(
+                    sat.earth_satellite.at(time).position.km,
+                    other.earth_satellite.at(time).position.km
+                )
 
-                if self.satellite_to_satellite_los(sat_earth1, sat_earth2, time):
-                    pos1_eci = sat_earth1.at(time).position.km
-                    pos2_eci = sat_earth2.at(time).position.km
-                    distance_km = self.calculate_distance_3d(pos1_eci, pos2_eci)
+                if distance_km > MAX_INTER_SAT_RANGE:
+                    continue
 
-                    max_inter_sat_range = 2000.0
-                    if distance_km < max_inter_sat_range and not self.G.has_edge(sat1_node_name, sat2_node_name):
-                        self.G.add_edge(
-                            sat1_node_name,
-                            sat2_node_name,
-                            distance=distance_km,
-                            connection_type='satellite'
-                        )
-                        print(
-                            f"  Connected {sat1_node_name} to {sat2_node_name} (Inter-Sat LOS, dist: {distance_km:.0f} km)")
+                if not self.satellite_to_satellite_los(sat.earth_satellite, other.earth_satellite, time):
+                    continue
+
+                # Add bidirectional edge
+                self.G.add_edge(
+                    sat_node, other_node,
+                    distance=distance_km,
+                    connection_type='satellite'
+                )
+                sat.connected_satellites.add(other.satellite_id)
+                other.connected_satellites.add(sat.satellite_id)
+
+                print(f"  Connected {sat_node} <--> {other_node} (Cross-plane, dist: {distance_km:.0f} km)")
 
     def get_node_latency_penalty(self, node):
         attr = self.G.nodes[node]  # Get node attributes

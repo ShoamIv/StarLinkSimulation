@@ -132,6 +132,9 @@ for step in range(num_steps):
         print(f"Error building graph for step {step}: {e}")
         continue
 
+    for sat in all_satellites:
+
+        print(f"{sat.name} connect to: {sat.connected_satellites}")
     # Create a KML folder per step/time
     step_folder = kml.newfolder(name=f"Step {step} - {current_time.strftime('%Y-%m-%d %H:%M UTC')}")
 

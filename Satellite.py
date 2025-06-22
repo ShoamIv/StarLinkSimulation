@@ -66,35 +66,6 @@ class Satellite:
         else:  # 1500 or more
             return 3
 
-    def can_connect_satellite(self) -> bool:
-        """Check if satellite can accept another satellite connection."""
-        return len(self.connected_satellites) < self.MAX_SATELLITE_CONNECTIONS
-
-    def can_connect_ground_station(self) -> bool:
-        """Check if satellite can accept another ground station connection."""
-        return len(self.connected_ground_stations) < self.MAX_GROUND_CONNECTIONS
-
-    def connect_satellite(self, satellite_id: int):
-        """Add a satellite connection."""
-        if self.can_connect_satellite():
-            self.connected_satellites.add(satellite_id)
-
-    def disconnect_satellite(self, satellite_id: int):
-        """Remove a satellite connection."""
-        self.connected_satellites.discard(satellite_id)
-
-    def connect_ground_station(self, ground_station_id: str):
-        """Add a ground station connection."""
-        if self.can_connect_ground_station():
-            self.connected_ground_stations.add(ground_station_id)
-
-    def disconnect_ground_station(self, ground_station_id: str):
-        """Remove a ground station connection."""
-        self.connected_ground_stations.discard(ground_station_id)
-
-    def get_latency_penalty(self) -> int:
-        """Get latency penalty based on capacity level."""
-        return self.CAPACITY_LATENCY_PENALTY_MS.get(self.capacity_level, 0)
 
     def reset_connections(self):
         """Call this before each new simulation step to clear old connections."""
