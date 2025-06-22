@@ -57,7 +57,7 @@ StarLinkSimulator/
 
 ✅ Calculates graph edges in real-time (satellite-to-satellite, satellite-to-ground, user-to-satellite)
 
-✅ Finds shortest path between a user and ground station with custom edge weights
+✅ Finds shortest path between a user and ground station/satellite with custom edge weights
 
 ✅ Exports simulation to time-aware KML, with satellite motion, ground links, and path color cod
 
@@ -83,7 +83,7 @@ After running the simulation, you'll get a satellite_simulation.kml file with:
 
 🟣 Purple icons: Users
 
-🔵 Violet lines: Shortest path per time step
+🟠 Orane lines: Shortest path per time step
 
 🔴/🟦 Lines: Communication links (S2S, GS2SAT, etc.)
 
